@@ -40,6 +40,17 @@ export const GeminiCli = ({ apiConfiguration, setApiConfigurationField }: Gemini
 				{t("settings:providers.geminiCli.oauthPathDescription")}
 			</div>
 
+			<VSCodeTextField
+				value={apiConfiguration?.geminiCliProjectId || ""}
+				onInput={handleInputChange("geminiCliProjectId")}
+				placeholder="your-project-id"
+				className="w-full">
+				<label className="block font-medium mb-1">项目 ID</label>
+			</VSCodeTextField>
+			<div className="text-sm text-vscode-descriptionForeground -mt-2">
+				可选，如果您有特定的 Google Cloud 项目 ID，请在此处填写。留空将自动发现或使用默认项目。
+			</div>
+
 			<div className="text-sm text-vscode-descriptionForeground mt-3">
 				{t("settings:providers.geminiCli.description")}
 			</div>

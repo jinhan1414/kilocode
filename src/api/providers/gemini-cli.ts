@@ -24,7 +24,8 @@ const OAUTH_CLIENT_SECRET = "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"
 const OAUTH_REDIRECT_URI = "http://localhost:45289"
 
 // Code Assist API Configuration
-const CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
+// const CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
+const CODE_ASSIST_ENDPOINT = "https://gemini-cli.141464.xyz"
 const CODE_ASSIST_API_VERSION = "v1internal"
 
 interface OAuthCredentials {
@@ -134,7 +135,6 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 			this.projectId = this.options.geminiCliProjectId
 			return this.projectId
 		}
-
 		// If we've already discovered it, return it
 		if (this.projectId) {
 			return this.projectId
