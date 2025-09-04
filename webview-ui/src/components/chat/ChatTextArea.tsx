@@ -22,10 +22,9 @@ import { convertToMentionPath } from "@/utils/path-mentions"
 import { DropdownOptionType, Button, StandardTooltip } from "@/components/ui" // kilocode_change
 
 import Thumbnails from "../common/Thumbnails"
-import ModeSelector from "./ModeSelector"
+import { ModeSelector } from "./ModeSelector"
 import KiloModeSelector from "../kilocode/KiloModeSelector"
 import { KiloProfileSelector } from "../kilocode/chat/KiloProfileSelector" // kilocode_change
-import WorkspaceSwitcher from "./WorkspaceSwitcher"
 import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import ContextMenu from "./ContextMenu"
 import { ImageWarningBanner } from "./ImageWarningBanner" // kilocode_change
@@ -74,7 +73,7 @@ interface ChatTextAreaProps {
 	onCancel?: () => void
 }
 
-const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
+export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 	(
 		{
 			inputValue,
@@ -111,8 +110,6 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			globalWorkflows, // kilocode_change
 			taskHistory,
 			clineMessages,
-			workspaceFolders,
-			activeWorkspacePath,
 		} = useExtensionState()
 
 		// Find the ID and display text for the currently selected API configuration
@@ -889,7 +886,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 			processedText = processedText
 				.replace(/\n$/, "\n\n")
-				.replace(/[<>&]/g, (c) => ({ "<": "<", ">": ">", "&": "&" })[c] || c)
+				.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] || c)
 				.replace(mentionRegexGlobal, '<mark class="mention-context-textarea-highlight">$&</mark>')
 
 			// check for highlighting /slash-commands
@@ -1213,60 +1210,44 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		)
 
 		// Helper function to render non-edit mode controls
-		const renderNonEditModeControls = () => {
-			// MOCK DATA
-			const mockWorkspaceFolders = [
-				{ name: "kilocode", path: "/path/to/kilocode" },
-				{ name: "project-b", path: "/path/to/project-b" },
-			]
-			const mockActiveWorkspacePath = "/path/to/kilocode"
-			// MOCK DATA END
+		const renderNonEditModeControls = () => (
+			// kilocode_change move thumbnails to bottom
 
-			return (
-				// kilocode_change move thumbnails to bottom
-
-				<div
-					// kilocode_change start
-					style={{
-						marginTop: "-38px",
-						zIndex: 2,
-						paddingLeft: "8px",
-						paddingRight: "8px",
-					}}
-					ref={containerRef}
-					// kilocode_change end
-					className={cn("flex", "justify-between", "items-center", "mt-auto")}>
-					<div className={cn("flex", "items-center", "gap-1", "min-w-0")}>
-						<div className="shrink-0">
-							{/* kilocode_change start: KiloModeSelector instead of ModeSelector */}
-							<KiloModeSelector
-								value={mode}
-								onChange={setMode}
-								modeShortcutText={modeShortcutText}
-								customModes={customModes}
-							/>
-							{/* kilocode_change end */}
-						</div>
-
-						<KiloProfileSelector
-							currentConfigId={currentConfigId}
-							currentApiConfigName={currentApiConfigName}
-							displayName={displayName}
-							listApiConfigMeta={listApiConfigMeta}
-							pinnedApiConfigs={pinnedApiConfigs}
-							togglePinnedApiConfig={togglePinnedApiConfig}
-							selectApiConfigDisabled={selectApiConfigDisabled}
+			<div
+				// kilocode_change start
+				style={{
+					marginTop: "-38px",
+					zIndex: 2,
+					paddingLeft: "8px",
+					paddingRight: "8px",
+				}}
+				ref={containerRef}
+				// kilocode_change end
+				className={cn("flex", "justify-between", "items-center", "mt-auto")}>
+				<div className={cn("flex", "items-center", "gap-1", "min-w-0")}>
+					<div className="shrink-0">
+						{/* kilocode_change start: KiloModeSelector instead of ModeSelector */}
+						<KiloModeSelector
+							value={mode}
+							onChange={setMode}
+							modeShortcutText={modeShortcutText}
+							customModes={customModes}
 						/>
-						{(workspaceFolders || mockWorkspaceFolders) &&
-							(workspaceFolders || mockWorkspaceFolders).length > 1 && (
-								<WorkspaceSwitcher
-									workspaceFolders={workspaceFolders || mockWorkspaceFolders}
-									activeWorkspacePath={activeWorkspacePath || mockActiveWorkspacePath}
-								/>
-							)}
+						{/* kilocode_change end */}
 					</div>
 
-					{/* kilocode_change: hidden on small containerWidth
+					<KiloProfileSelector
+						currentConfigId={currentConfigId}
+						currentApiConfigName={currentApiConfigName}
+						displayName={displayName}
+						listApiConfigMeta={listApiConfigMeta}
+						pinnedApiConfigs={pinnedApiConfigs}
+						togglePinnedApiConfig={togglePinnedApiConfig}
+						selectApiConfigDisabled={selectApiConfigDisabled}
+					/>
+				</div>
+
+				{/* kilocode_change: hidden on small containerWidth
 					<div className={cn("flex", "items-center", "gap-0.5", "shrink-0")}>
 						{isTtsPlaying && (
 							<StandardTooltip content={t("chat:stopTts")}>
@@ -1313,9 +1294,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						</StandardTooltip>
 					</div>
 					*/}
-				</div>
-			)
-		}
+			</div>
+		)
 
 		// Helper function to render the text area section
 		const renderTextAreaSection = () => (
@@ -1677,5 +1657,3 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		)
 	},
 )
-
-export default ChatTextArea
