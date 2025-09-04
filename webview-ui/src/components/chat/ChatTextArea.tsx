@@ -25,6 +25,8 @@ import Thumbnails from "../common/Thumbnails"
 import { ModeSelector } from "./ModeSelector"
 import KiloModeSelector from "../kilocode/KiloModeSelector"
 import { KiloProfileSelector } from "../kilocode/chat/KiloProfileSelector" // kilocode_change
+import WorkspaceSwitcher from "./WorkspaceSwitcher"
+
 import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import ContextMenu from "./ContextMenu"
 import { ImageWarningBanner } from "./ImageWarningBanner" // kilocode_change
@@ -110,6 +112,8 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			globalWorkflows, // kilocode_change
 			taskHistory,
 			clineMessages,
+			workspaceFolders,
+			activeWorkspacePath,
 		} = useExtensionState()
 
 		// Find the ID and display text for the currently selected API configuration
@@ -1245,6 +1249,12 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						togglePinnedApiConfig={togglePinnedApiConfig}
 						selectApiConfigDisabled={selectApiConfigDisabled}
 					/>
+					{workspaceFolders && workspaceFolders.length > 1 && (
+						<WorkspaceSwitcher
+							workspaceFolders={workspaceFolders}
+							activeWorkspacePath={activeWorkspacePath}
+						/>
+					)}
 				</div>
 
 				{/* kilocode_change: hidden on small containerWidth

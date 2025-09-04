@@ -388,6 +388,8 @@ export type ExtensionState = Pick<
 	hasOpenedModeSelector: boolean
 	openRouterImageApiKey?: string
 	kiloCodeImageApiKey?: string
+	workspaceFolders: { name: string; path: string }[]
+	activeWorkspacePath: string
 }
 
 export interface ClineSayTool {

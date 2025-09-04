@@ -99,6 +99,7 @@ import { OpenRouterHandler } from "../../api/providers"
 import { stringifyError } from "../../shared/kilocode/errorUtils"
 import isWsl from "is-wsl"
 import { getKilocodeDefaultModel } from "../../api/providers/kilocode/getKilocodeDefaultModel"
+import { setActiveWorkspacePath } from "../../services/workspace/activeWorkspace"
 
 export type ClineProviderState = Awaited<ReturnType<ClineProvider["getState"]>>
 // kilocode_change end
@@ -132,6 +133,9 @@ export class ClineProvider
 	private taskEventListeners: WeakMap<Task, Array<() => void>> = new WeakMap()
 
 	private recentTasksCache?: string[]
+	private workspaceFolders: { name: string; path: string }[] = []
+	private activeWorkspacePath: string = ""
+	public cwd: string = ""
 
 	public isViewLaunched = false
 	public settingsImportedAt?: number
@@ -226,8 +230,38 @@ export class ClineProvider
 		this.initializeCloudProfileSync().catch((error) => {
 			this.log(`Failed to initialize cloud profile sync: ${error}`)
 		})
+		this.updateWorkspaceState()
+		this.disposables.push(
+			vscode.workspace.onDidChangeWorkspaceFolders(() => {
+				this.updateWorkspaceState()
+				this.postStateToWebview()
+			}),
+		)
+	}
+	private updateWorkspaceState() {
+		const workspaceFolders = vscode.workspace.workspaceFolders
+		if (workspaceFolders) {
+			this.workspaceFolders = workspaceFolders.map((folder) => ({
+				name: folder.name,
+				path: folder.uri.fsPath,
+			}))
+			this.activeWorkspacePath = workspaceFolders[0].uri.fsPath
+			this.cwd = this.activeWorkspacePath
+			setActiveWorkspacePath(this.cwd)
+		} else {
+			this.workspaceFolders = []
+			this.activeWorkspacePath = ""
+			this.cwd = ""
+			setActiveWorkspacePath(undefined)
+		}
 	}
 
+	public setActiveWorkspacePath(path: string) {
+		this.activeWorkspacePath = path
+		this.cwd = path
+		setActiveWorkspacePath(this.cwd)
+		this.postStateToWebview()
+	}
 	/**
 	 * Override EventEmitter's on method to match TaskProviderLike interface
 	 */
@@ -1692,6 +1726,8 @@ export class ClineProvider
 
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
+			workspaceFolders: this.workspaceFolders,
+			activeWorkspacePath: this.activeWorkspacePath,
 			apiConfiguration,
 			customInstructions,
 			alwaysAllowReadOnly: alwaysAllowReadOnly ?? true,

@@ -3157,5 +3157,11 @@ export const webviewMessageHandler = async (
 			vscode.window.showWarningMessage(t("common:mdm.info.organization_requires_auth"))
 			break
 		}
+		case "switchWorkspace": {
+			if (message.path) {
+				provider.setActiveWorkspacePath(message.path)
+			}
+			break
+		}
 	}
 }

@@ -268,7 +268,9 @@ export interface WebviewMessage {
 		| "openRouterImageApiKey"
 		| "kiloCodeImageApiKey"
 		| "openRouterImageGenerationSelectedModel"
+		| "switchWorkspace"
 	text?: string
+	path?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"
 	disabled?: boolean

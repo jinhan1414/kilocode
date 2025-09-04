@@ -330,6 +330,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.instanceId = crypto.randomUUID().slice(0, 8)
 		this.taskNumber = -1
 
+		this.providerRef = new WeakRef(provider)
 		this.rooIgnoreController = new RooIgnoreController(this.cwd)
 		this.rooProtectedController = new RooProtectedController(this.cwd)
 		this.fileContextTracker = new FileContextTracker(provider, this.taskId)
@@ -2880,6 +2881,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// Getters
 
 	public get cwd() {
+		const provider = this.providerRef.deref()
+		if (provider && provider.cwd) {
+			return provider.cwd
+		}
 		return this.workspacePath
 	}
 
