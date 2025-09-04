@@ -1,6 +1,7 @@
 import * as path from "path"
 import os from "os"
 import * as vscode from "vscode"
+import { getActiveWorkspacePath } from "../services/workspace/activeWorkspace"
 
 /*
 The Node.js 'path' module resolves and normalizes paths differently depending on the platform:
@@ -107,8 +108,14 @@ export const toRelativePath = (filePath: string, cwd: string) => {
 }
 
 export const getWorkspacePath = (defaultCwdPath = "") => {
+	const activePath = getActiveWorkspacePath()
+	if (activePath) {
+		return activePath
+	}
+
 	const cwdPath = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) || defaultCwdPath
 	const currentFileUri = vscode.window.activeTextEditor?.document.uri
+
 	if (currentFileUri) {
 		const workspaceFolder = vscode.workspace.getWorkspaceFolder(currentFileUri)
 		return workspaceFolder?.uri.fsPath || cwdPath
