@@ -13,6 +13,12 @@
 		"addCredit": "Krediet toevoegen",
 		"lowBalance": "Uw Kilo Code-saldo is laag"
 	},
+	"invalidModel": {
+		"alphaPeriodEnded": "🎉 De alfaperiode voor {{model}} is beëindigd! Verander naar een ander model om door te gaan.",
+		"modelUnavailable": "⚠️ Het model {{model}} is niet beschikbaar. Verander naar een ander model om door te gaan.",
+		"continueWith": "Doorgaan met {{model}}",
+		"continue": "Doorgaan"
+	},
 	"pricing": {
 		"costUnknown": "kosten onbekend",
 		"costUnknownDescription": "De API-provider heeft geen kostengegevens verstrekt of het verzoek is geannuleerd.",
@@ -246,6 +252,7 @@
 	},
 	"imageWarnings": {
 		"modelNoImageSupport": "Afbeeldingen worden niet ondersteund door het huidige model.",
-		"maxImagesReached": "Maximaal 20 afbeeldingen per bericht. Verwijder enkele afbeeldingen om meer toe te voegen."
+		"maxImagesReached": "Maximaal 20 afbeeldingen per bericht. Verwijder enkele afbeeldingen om meer toe te voegen.",
+		"imagesRemovedNoSupport": "Afbeeldingen verwijderd, niet ondersteund door model."
 	}
 }

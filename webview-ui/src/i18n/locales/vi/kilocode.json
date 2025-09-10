@@ -13,6 +13,12 @@
 		"addCredit": "Thêm tín dụng",
 		"lowBalance": "Số dư Kilo Code của bạn thấp"
 	},
+	"invalidModel": {
+		"alphaPeriodEnded": "🎉 Giai đoạn alpha cho {{model}} đã kết thúc! Chuyển sang mô hình khác để tiếp tục.",
+		"modelUnavailable": "⚠️ Mô hình {{model}} không khả dụng. Chuyển sang mô hình khác để tiếp tục.",
+		"continueWith": "Tiếp tục với {{model}}",
+		"continue": "Tiếp tục"
+	},
 	"pricing": {
 		"costUnknown": "chi phí không xác định",
 		"costUnknownDescription": "Nhà cung cấp API không cung cấp dữ liệu chi phí hoặc yêu cầu đã bị hủy.",
@@ -246,6 +252,7 @@
 	},
 	"imageWarnings": {
 		"modelNoImageSupport": "Hình ảnh không được hỗ trợ bởi mô hình hiện tại.",
-		"maxImagesReached": "Tối đa 20 hình ảnh cho mỗi tin nhắn. Hãy xóa một số hình ảnh để thêm được nhiều hơn."
+		"maxImagesReached": "Tối đa 20 hình ảnh cho mỗi tin nhắn. Hãy xóa một số hình ảnh để thêm được nhiều hơn.",
+		"imagesRemovedNoSupport": "Hình ảnh đã bị xóa, không được mô hình hỗ trợ."
 	}
 }

@@ -13,6 +13,12 @@
 		"addCredit": "Adicionar crédito",
 		"lowBalance": "Seu saldo do Kilo Code está baixo"
 	},
+	"invalidModel": {
+		"alphaPeriodEnded": "🎉 O período alfa para {{model}} terminou! Mude para um modelo diferente para continuar.",
+		"modelUnavailable": "⚠️ O modelo {{model}} está indisponível. Mude para um modelo diferente para continuar.",
+		"continueWith": "Continuar com {{model}}",
+		"continue": "Continuar"
+	},
 	"pricing": {
 		"costUnknown": "custo desconhecido",
 		"costUnknownDescription": "O Provedor de API não forneceu dados de custo ou a solicitação foi cancelada.",
@@ -246,6 +252,7 @@
 	},
 	"imageWarnings": {
 		"modelNoImageSupport": "Imagens não são suportadas pelo modelo atual.",
-		"maxImagesReached": "Máximo de 20 imagens por mensagem. Remova algumas imagens para adicionar mais."
+		"maxImagesReached": "Máximo de 20 imagens por mensagem. Remova algumas imagens para adicionar mais.",
+		"imagesRemovedNoSupport": "Imagens removidas, não suportadas pelo modelo."
 	}
 }

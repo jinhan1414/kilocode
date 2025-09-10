@@ -151,6 +151,7 @@ const ApiOptions = ({
 	const {
 		organizationAllowList,
 		uiKind, // kilocode_change
+		kiloCodeWrapperProperties, // kilocode_change
 		kilocodeDefaultModel,
 		cloudIsAuthenticated,
 	} = useExtensionState()
@@ -408,16 +409,7 @@ const ApiOptions = ({
 
 		// kilocode_change start
 		// Providers that don't have documentation pages yet
-		const excludedProviders = [
-			"gemini-cli",
-			"moonshot",
-			"chutes",
-			"cerebras",
-			"virtual-quota-fallback",
-			"litellm",
-			"zai",
-			"qwen-code",
-		]
+		const excludedProviders = ["gemini-cli", "moonshot", "chutes", "cerebras", "litellm", "zai", "qwen-code"]
 
 		// Skip documentation link when the provider is excluded because documentation is not available
 		if (excludedProviders.includes(selectedProvider)) {
@@ -495,6 +487,7 @@ const ApiOptions = ({
 					organizationAllowList={organizationAllowList}
 					uriScheme={uriScheme}
 					uiKind={uiKind}
+					kiloCodeWrapperProperties={kiloCodeWrapperProperties}
 					kilocodeDefaultModel={kilocodeDefaultModel}
 				/>
 			)}
@@ -654,10 +647,6 @@ const ApiOptions = ({
 					apiConfiguration={apiConfiguration}
 					setApiConfigurationField={setApiConfigurationField}
 				/>
-			)}
-
-			{selectedProvider === "qwen-code" && (
-				<QwenCode apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
 			)}
 			{/* kilocode_change end */}
 

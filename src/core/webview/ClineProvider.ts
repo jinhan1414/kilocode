@@ -99,6 +99,7 @@ import { OpenRouterHandler } from "../../api/providers"
 import { stringifyError } from "../../shared/kilocode/errorUtils"
 import isWsl from "is-wsl"
 import { getKilocodeDefaultModel } from "../../api/providers/kilocode/getKilocodeDefaultModel"
+import { getKiloCodeWrapperProperties } from "../../core/kilocode/wrapper"
 import { setActiveWorkspacePath } from "../../services/workspace/activeWorkspace"
 
 export type ClineProviderState = Awaited<ReturnType<ClineProvider["getState"]>>
@@ -1724,6 +1725,10 @@ export class ClineProvider
 		const currentMode = mode ?? defaultModeSlug
 		const hasSystemPromptOverride = await this.hasFileBasedSystemPromptOverride(currentMode)
 
+		// kilocode_change start wrapper information
+		const kiloCodeWrapperProperties = getKiloCodeWrapperProperties()
+		// kilocode_change end
+
 		return {
 			version: this.context.extension?.packageJSON?.version ?? "",
 			workspaceFolders: this.workspaceFolders,
@@ -1747,6 +1752,7 @@ export class ClineProvider
 			autoCondenseContextPercent: autoCondenseContextPercent ?? 100,
 			uriScheme: vscode.env.uriScheme,
 			uiKind: vscode.UIKind[vscode.env.uiKind], // kilocode_change
+			kiloCodeWrapperProperties, // kilocode_change wrapper information
 			kilocodeDefaultModel: await getKilocodeDefaultModel(apiConfiguration.kilocodeToken),
 			currentTaskItem: this.getCurrentTask()?.taskId
 				? (taskHistory || []).find((item: HistoryItem) => item.id === this.getCurrentTask()?.taskId)
@@ -2546,13 +2552,27 @@ export class ClineProvider
 	private getAppProperties(): StaticAppProperties {
 		if (!this._appProperties) {
 			const packageJSON = this.context.extension?.packageJSON
+			// kilocode_change start
+			const {
+				kiloCodeWrapped,
+				kiloCodeWrapper,
+				kiloCodeWrapperCode,
+				kiloCodeWrapperVersion,
+				kiloCodeWrapperTitle,
+			} = getKiloCodeWrapperProperties()
+			// kilocode_change end
 
 			this._appProperties = {
 				appName: packageJSON?.name ?? Package.name,
 				appVersion: packageJSON?.version ?? Package.version,
 				vscodeVersion: vscode.version,
-				platform: process.platform,
-				editorName: vscode.env.appName,
+				platform: isWsl ? "wsl" /* kilocode_change */ : process.platform,
+				editorName: kiloCodeWrapperTitle ? kiloCodeWrapperTitle : vscode.env.appName, // kilocode_change
+				wrapped: kiloCodeWrapped, // kilocode_change
+				wrapper: kiloCodeWrapper, // kilocode_change
+				wrapperCode: kiloCodeWrapperCode, // kilocode_change
+				wrapperVersion: kiloCodeWrapperVersion, // kilocode_change
+				wrapperTitle: kiloCodeWrapperTitle, // kilocode_change
 			}
 		}
 
