@@ -2938,9 +2938,9 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 
 	// kilocode_change end
 
-	public get cwd() {
-		return getWorkspacePath()
-	}
+	// public get cwd() {
+	// 	return getWorkspacePath()
+	// }
 
 	/**
 	 * Convert a file path to a webview-accessible URI

@@ -523,6 +523,7 @@ describe("ClineProvider", () => {
 				apiProvider: "kilocode",
 				kilocodeModel: openRouterDefaultModelId,
 				kilocodeToken: "kilocode-token",
+				geminiCliCredentialIndex: 0,
 				// kilocode_change end
 			},
 			kilocodeDefaultModel: openRouterDefaultModelId,
@@ -576,6 +577,8 @@ describe("ClineProvider", () => {
 			diagnosticsEnabled: true,
 			openRouterImageApiKey: undefined,
 			openRouterImageGenerationSelectedModel: undefined,
+			workspaceFolders: [],
+			activeWorkspacePath: "",
 		}
 
 		const message: ExtensionMessage = {

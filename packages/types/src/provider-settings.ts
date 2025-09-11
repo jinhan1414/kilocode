@@ -234,6 +234,7 @@ const geminiSchema = apiModelIdProviderModelSchema.extend({
 const geminiCliSchema = apiModelIdProviderModelSchema.extend({
 	geminiCliOAuthPath: z.string().optional(),
 	geminiCliProjectId: z.string().optional(),
+	geminiCliCredentialIndex: z.number().optional(),
 })
 // kilocode_change end
 
