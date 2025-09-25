@@ -32,7 +32,8 @@
 		"experimental": "実験的",
 		"language": "言語",
 		"about": "Kilo Codeについて",
-		"display": "表示"
+		"display": "表示",
+		"ghost": "Ghost"
 	},
 	"prompts": {
 		"description": "プロンプトの強化、コードの説明、問題の修正などの迅速なアクションに使用されるサポートプロンプトを設定します。これらのプロンプトは、Kilo Codeが一般的な開発タスクでより良いサポートを提供するのに役立ちます。"
@@ -785,6 +786,10 @@
 		"INLINE_ASSIST": {
 			"name": "Autocomplete",
 			"description": "エディター内で直接コードの迅速な提案と改善を行うAutocomplete機能を有効にします。ターゲット変更用のクイックタスク（Cmd+I）とコンテキスト改善用のAutocompleteが含まれます。"
+		},
+		"RUN_SLASH_COMMAND": {
+			"name": "モデル開始スラッシュコマンドを有効にする",
+			"description": "有効にすると、Kilo Codeがワークフローを実行するためにあなたのスラッシュコマンドを実行できます。"
 		}
 	},
 	"promptCaching": {
@@ -900,9 +905,30 @@
 			"description": "タスクメッセージの視覚的なタイムラインを表示し、種類ごとに色分けすることで、タスクの進捗状況を素早く確認したり、タスク履歴の特定のポイントまでスクロールバックしたりすることができます。"
 		}
 	},
+	"ghost": {
+		"showGutterAnimation": {
+			"label": "オートコンプリート時にガターアニメーションを表示",
+			"description": "オートコンプリートの実行中にエディタガターにアニメーションインジケータを表示",
+			"preview": "アニメーションプレビュー"
+		}
+	},
 	"includeMaxOutputTokens": "最大出力トークンを含める",
 	"includeMaxOutputTokensDescription": "APIリクエストで最大出力トークンパラメータを送信します。一部のプロバイダーはこれをサポートしていない場合があります。",
 	"limitMaxTokensDescription": "レスポンスの最大トークン数を制限する",
 	"maxOutputTokensLabel": "最大出力トークン",
-	"maxTokensGenerateDescription": "レスポンスで生成する最大トークン数"
+	"maxTokensGenerateDescription": "レスポンスで生成する最大トークン数",
+	"serviceTier": {
+		"label": "サービスティア",
+		"tooltip": "APIリクエストをより速く処理するには、優先処理サービスティアをお試しください。低価格でレイテンシが高い場合は、フレックス処理ティアをお試しください。",
+		"standard": "標準",
+		"flex": "フレックス",
+		"priority": "優先",
+		"pricingTableTitle": "サービスティア別料金（100万トークンあたりの価格）",
+		"columns": {
+			"tier": "ティア",
+			"input": "入力",
+			"output": "出力",
+			"cacheReads": "キャッシュ読み取り"
+		}
+	}
 }

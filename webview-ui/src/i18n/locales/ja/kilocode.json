@@ -13,8 +13,14 @@
 		"addCredit": "クレジットを追加",
 		"lowBalance": "Kilo Codeの残高が少なくなっています"
 	},
+	"pagination": {
+		"previous": "前へ",
+		"next": "次へ",
+		"page": "ページ {{page}} / {{count}}"
+	},
 	"invalidModel": {
 		"alphaPeriodEnded": "🎉 {{model}}のアルファ期間が終了しました！続行するには別のモデルに変更してください。",
+		"notAllowedForTeam": "⚠️ あなたの組織は{{model}}モデルの使用を許可していません。続行するには別のモデルに変更してください。",
 		"modelUnavailable": "⚠️ モデル{{model}}は利用できません。続行するには別のモデルに変更してください。",
 		"continueWith": "{{model}}で続行",
 		"continue": "続行"
@@ -42,7 +48,8 @@
 			"login": "Kilo Codeにログイン",
 			"logout": "Kilo Codeからログアウト",
 			"providerRouting": {
-				"title": "Kilo Code - OpenRouterプロバイダーのルーティング",
+				"title": "プロバイダールーティング",
+				"managedByOrganization": "プロバイダールーティング設定はあなたの組織によって管理されています。",
 				"description": "Kilo Codeは、モデルに最適な利用可能なプロバイダーにリクエストをルーティングします。デフォルトでは、稼働時間を最大化するために、リクエストはトッププロバイダー間で負荷分散されます。ただし、このモデルに使用する特定のプロバイダーを選択できます。",
 				"sorting": {
 					"default": "デフォルトプロバイダーソート",
@@ -197,7 +204,6 @@
 	"ghost": {
 		"title": "Autocomplete",
 		"settings": {
-			"autoTrigger": "自動トリガー",
 			"triggers": "トリガー",
 			"keybindingDescription": "Autocomplete機能はコマンドでトリガーできます。<DocsLink>キーボードショートカットはこちら</DocsLink>で設定できます。",
 			"enableAutoTrigger": {
@@ -209,11 +215,11 @@
 				"description": "タイピングを停止してからKilo CodeがAutocompleteをトリガーするまでの秒数。遅延が短いほど提案が早くなりますが、リソースを多く消費する可能性があります。"
 			},
 			"enableQuickInlineTaskKeybinding": {
-				"label": "クイックタスク",
+				"label": "クイックタスク ({{keybinding}})",
 				"description": "ちょっとした変更だけが必要？コードを選択して（しなくても大丈夫！）Cmd+Iを押してください。目標を日本語で説明し（「これらのpropsでReactコンポーネントを作成」、「この関数にエラーハンドリングを追加」）、エディター内で複数のすぐに使える提案を取得できます。<DocsLink>ショートカットを見る</DocsLink>"
 			},
 			"enableSmartInlineTaskKeybinding": {
-				"label": "手動Autocomplete",
+				"label": "手動オートコンプリート ({{keybinding}})",
 				"description": "素早い修正、補完、またはリファクタリングが必要？Kiloは周囲のコンテキストを使用して即座の改善を提供し、フローを維持します。<DocsLink>ショートカットを見る</DocsLink>"
 			},
 			"enableCustomProvider": {
@@ -225,7 +231,8 @@
 				"label": "API設定",
 				"current": "現在選択されているAPI設定を使用",
 				"description": "Autocompleteプロンプトに使用するAPI設定を選択するか、現在選択されているものを使用してください"
-			}
+			},
+			"keybindingNotFound": "見つかりません"
 		}
 	},
 	"virtualProvider": {

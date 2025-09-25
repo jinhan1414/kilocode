@@ -29,6 +29,7 @@ import { attemptCompletionTool } from "../tools/attemptCompletionTool"
 import { newTaskTool } from "../tools/newTaskTool"
 
 import { updateTodoListTool } from "../tools/updateTodoListTool"
+import { runSlashCommandTool } from "../tools/runSlashCommandTool"
 import { generateImageTool } from "../tools/generateImageTool"
 
 import { formatResponse } from "../prompts/responses"
@@ -40,7 +41,7 @@ import { condenseTool } from "../tools/condenseTool" // kilocode_change
 import { codebaseSearchTool } from "../tools/codebaseSearchTool"
 import { experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "../tools/applyDiffTool"
-import { reportExcessiveRecursion, yieldPromise } from "../kilocode"
+import { yieldPromise } from "../kilocode"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -60,8 +61,6 @@ import { reportExcessiveRecursion, yieldPromise } from "../kilocode"
  */
 
 export async function presentAssistantMessage(cline: Task, recursionDepth: number = 0 /*kilocode_change*/) {
-	reportExcessiveRecursion("presentAssistantMessage", recursionDepth) // kilocode_change
-
 	if (cline.abort) {
 		throw new Error(`[Task#presentAssistantMessage] task ${cline.taskId}.${cline.instanceId} aborted`)
 	}
@@ -241,6 +240,8 @@ export async function presentAssistantMessage(cline: Task, recursionDepth: numbe
 					case "condense":
 						return `[${block.name}]`
 					// kilocode_change end
+					case "run_slash_command":
+						return `[${block.name} for '${block.params.command}'${block.params.args ? ` with args: ${block.params.args}` : ""}]`
 					case "generate_image":
 						return `[${block.name} for '${block.params.path}']`
 				}
@@ -586,6 +587,9 @@ export async function presentAssistantMessage(cline: Task, recursionDepth: numbe
 					await condenseTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 				// kilocode_change end
+				case "run_slash_command":
+					await runSlashCommandTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
+					break
 				case "generate_image":
 					await generateImageTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break

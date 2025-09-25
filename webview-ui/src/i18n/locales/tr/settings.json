@@ -32,7 +32,8 @@
 		"experimental": "Deneysel",
 		"language": "Dil",
 		"about": "Kilo Code Hakkında",
-		"display": "Göster"
+		"display": "Göster",
+		"ghost": "Ghost"
 	},
 	"prompts": {
 		"description": "Prompt geliştirme, kod açıklama ve sorun çözme gibi hızlı eylemler için kullanılan destek promptlarını yapılandırın. Bu promptlar, Kilo Code'nun yaygın geliştirme görevleri için daha iyi destek sağlamasına yardımcı olur."
@@ -785,6 +786,10 @@
 		"INLINE_ASSIST": {
 			"name": "Autocomplete",
 			"description": "Editörünüzde doğrudan hızlı kod önerileri ve iyileştirmeler için Autocomplete özelliklerini etkinleştirin. Hedeflenen değişiklikler için Hızlı Görev (Cmd+I) ve bağlamsal iyileştirmeler için Autocomplete içerir."
+		},
+		"RUN_SLASH_COMMAND": {
+			"name": "Model tarafından başlatılan slash komutlarını etkinleştir",
+			"description": "Etkinleştirildiğinde, Kilo Code iş akışlarını yürütmek için slash komutlarınızı çalıştırabilir."
 		}
 	},
 	"promptCaching": {
@@ -900,9 +905,30 @@
 			"label": "Görev zaman çizelgesini göster"
 		}
 	},
+	"ghost": {
+		"showGutterAnimation": {
+			"label": "Otomatik tamamlama sırasında kenar çubuğu animasyonunu göster",
+			"description": "Otomatik tamamlama çalışırken editörün kenar çubuğunda animasyonlu gösterge görüntüle",
+			"preview": "Animasyon önizlemesi"
+		}
+	},
 	"includeMaxOutputTokens": "Maksimum çıktı tokenlerini dahil et",
 	"includeMaxOutputTokensDescription": "API isteklerinde maksimum çıktı token parametresini gönder. Bazı sağlayıcılar bunu desteklemeyebilir.",
 	"limitMaxTokensDescription": "Yanıttaki maksimum token sayısını sınırla",
 	"maxOutputTokensLabel": "Maksimum çıktı tokenları",
-	"maxTokensGenerateDescription": "Yanıtta oluşturulacak maksimum token sayısı"
+	"maxTokensGenerateDescription": "Yanıtta oluşturulacak maksimum token sayısı",
+	"serviceTier": {
+		"label": "Hizmet seviyesi",
+		"tooltip": "Daha hızlı API isteği işleme için öncelikli işleme hizmeti seviyesini deneyin. Daha düşük gecikme süresiyle daha düşük fiyatlar için esnek işleme seviyesini deneyin.",
+		"standard": "Standart",
+		"flex": "Esnek",
+		"priority": "Öncelik",
+		"pricingTableTitle": "Hizmet seviyesine göre fiyatlandırma (1 milyon token başına fiyat)",
+		"columns": {
+			"tier": "Seviye",
+			"input": "Giriş",
+			"output": "Çıkış",
+			"cacheReads": "Önbellek okumaları"
+		}
+	}
 }

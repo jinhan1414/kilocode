@@ -36,14 +36,14 @@ export class TelemetryService {
 
 	/**
 	 * Updates the telemetry state based on user preferences and VSCode settings
-	 * @param didUserOptIn Whether the user has explicitly opted into telemetry
+	 * @param isOptedIn Whether the user is opted into telemetry
 	 */
-	public updateTelemetryState(didUserOptIn: boolean): void {
+	public updateTelemetryState(isOptedIn: boolean): void {
 		if (!this.isReady) {
 			return
 		}
 
-		this.clients.forEach((client) => client.updateTelemetryState(didUserOptIn))
+		this.clients.forEach((client) => client.updateTelemetryState(isOptedIn))
 	}
 
 	// kilocode_change start
@@ -96,6 +96,7 @@ export class TelemetryService {
 			cacheWriteTokens: number
 			cacheReadTokens: number
 			cost?: number
+			completionTime?: number // kilocode_change
 		},
 	): void {
 		this.captureEvent(TelemetryEventName.LLM_COMPLETION, { taskId, ...properties })

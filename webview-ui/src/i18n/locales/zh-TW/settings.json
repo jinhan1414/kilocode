@@ -32,7 +32,8 @@
 		"experimental": "實驗性",
 		"language": "語言",
 		"about": "關於 Kilo Code",
-		"display": "顯示"
+		"display": "顯示",
+		"ghost": "Ghost"
 	},
 	"prompts": {
 		"description": "設定用於快速操作的支援提示詞，如增強提示詞、解釋程式碼和修復問題。這些提示詞幫助 Kilo Code 為常見開發工作提供更好的支援。"
@@ -757,7 +758,7 @@
 		},
 		"PREVENT_FOCUS_DISRUPTION": {
 			"name": "背景編輯",
-			"description": "啟用後可防止編輯器焦點中斷。檔案編輯會在背景進行，不會開啟 diff 檢視或搶奪焦點。您可以在 Kilo Code 進行變更時繼續不受幹擾地工作。檔案可能會在不獲得焦點的情況下開啟以捕獲診斷，或保持完全關閉。"
+			"description": "啟用後可防止編輯器焦點中斷。檔案編輯會在背景進行，不會開啟 diff 檢視或搶奪焦點。您可以在 Roo 進行變更時繼續不受干擾地工作。檔案可能會在不獲得焦點的情況下開啟以捕獲診斷，或保持完全關閉。"
 		},
 		"ASSISTANT_MESSAGE_PARSER": {
 			"name": "使用全新訊息解析器",
@@ -785,6 +786,10 @@
 		"INLINE_ASSIST": {
 			"name": "Autocomplete",
 			"description": "啟用 Autocomplete 功能，在編輯器中直接提供快速程式碼建議和改進。包括針對性變更的快速工作（Cmd+I）和內容改進的 Autocomplete。"
+		},
+		"RUN_SLASH_COMMAND": {
+			"name": "啟用模型啟動的斜線命令",
+			"description": "啟用時，Kilo Code 可以執行您的斜線命令來執行工作流程。"
 		}
 	},
 	"promptCaching": {
@@ -900,6 +905,13 @@
 			"description": "顯示任務訊息的視覺化時間軸，按類型著色，讓您能夠快速查看任務進度並回滾到任務歷史中的特定節點。"
 		}
 	},
+	"ghost": {
+		"showGutterAnimation": {
+			"label": "自動完成時顯示編輯器邊欄動畫",
+			"description": "在自動完成執行時於編輯器邊欄顯示動畫指示",
+			"preview": "動畫預覽"
+		}
+	},
 	"contextWindow": {
 		"description": "最大對話內容",
 		"oneMillion": "1M"
@@ -911,5 +923,19 @@
 	"includeMaxOutputTokensDescription": "在 API 請求中傳送最大輸出 Token 參數。某些供應商可能不支援此功能。",
 	"limitMaxTokensDescription": "限制回應中的最大 Token 數量",
 	"maxOutputTokensLabel": "最大輸出 Token 數",
-	"maxTokensGenerateDescription": "回應中產生的最大 Token 數"
+	"maxTokensGenerateDescription": "回應中產生的最大 Token 數",
+	"serviceTier": {
+		"label": "服務層級",
+		"tooltip": "若需更快的 API 請求處理，請嘗試優先處理服務層級。若需較低價格但延遲較高，請嘗試彈性處理層級。",
+		"standard": "標準",
+		"flex": "彈性",
+		"priority": "優先",
+		"pricingTableTitle": "按服務層級定價（每百萬 Token 價格）",
+		"columns": {
+			"tier": "層級",
+			"input": "輸入",
+			"output": "輸出",
+			"cacheReads": "快取讀取"
+		}
+	}
 }

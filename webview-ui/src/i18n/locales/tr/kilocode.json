@@ -13,6 +13,11 @@
 		"addCredit": "Kredi Ekle",
 		"lowBalance": "Kilo Code bakiyeniz düşük"
 	},
+	"pagination": {
+		"previous": "Önceki",
+		"next": "Sonraki",
+		"page": "Sayfa {{page}} / {{count}}"
+	},
 	"pricing": {
 		"costUnknown": "maliyet bilinmiyor",
 		"costUnknownDescription": "API Sağlayıcısı herhangi bir maliyet verisi sağlamadı veya istek iptal edildi.",
@@ -43,7 +48,8 @@
 			"logout": "Kilo Code'dan çıkış yap",
 			"automaticFetch": "En son modeller Kilo Code'da otomatik olarak kullanılabilir. Hangi modeli seçeceğinizden emin değilseniz, Kilo Code en üstte <strong>kalın yazı</strong> ile listelenen önerilen modellerle en iyi şekilde çalışır.",
 			"providerRouting": {
-				"title": "Kilo Code - OpenRouter Sağlayıcı Yönlendirme",
+				"title": "Sağlayıcı Yönlendirme",
+				"managedByOrganization": "Sağlayıcı Yönlendirme ayarları organizasyonunuz tarafından yönetiliyor.",
 				"description": "Kilo Code, modeliniz için en iyi kullanılabilir sağlayıcılara istekleri yönlendirir. Varsayılan olarak, çalışma süresini en üst düzeye çıkarmak için istekler en iyi sağlayıcılar arasında yük dengelenir. Ancak, bu model için kullanılacak belirli bir sağlayıcı seçebilirsiniz.",
 				"sorting": {
 					"default": "Varsayılan sağlayıcı sıralaması",
@@ -191,7 +197,6 @@
 	"ghost": {
 		"title": "Autocomplete",
 		"settings": {
-			"autoTrigger": "Otomatik Tetikleme",
 			"triggers": "Tetikleyiciler",
 			"keybindingDescription": "Autocomplete özellikleri komutlarla tetiklenebilir. <DocsLink>Klavye Kısayollarını burada</DocsLink> yapılandırabilirsin.",
 			"enableAutoTrigger": {
@@ -203,11 +208,11 @@
 				"description": "Yazmayı bıraktıktan sonra Kilo Code'un Autocomplete'i tetiklemeden önceki saniye cinsinden gecikme. Daha kısa gecikme daha hızlı öneriler anlamına gelir, ancak daha fazla kaynak yoğun olabilir."
 			},
 			"enableQuickInlineTaskKeybinding": {
-				"label": "Hızlı Görev",
+				"label": "Hızlı Görev ({{keybinding}})",
 				"description": "Sadece hızlı bir değişiklik mi gerekiyor? Biraz kod seç (ya da seçme!) ve Cmd+I'ya bas. Hedefini basit Türkçe ile açıkla (\"bu props'larla bir React bileşeni oluştur\", \"bu fonksiyona hata işleme ekle\"), ve editöründe doğrudan kullanıma hazır birden fazla öneri al. <DocsLink>Kısayolu gör</DocsLink>"
 			},
 			"enableSmartInlineTaskKeybinding": {
-				"label": "Manuel Autocomplete",
+				"label": "Manuel Otomatik Tamamlama ({{keybinding}})",
 				"description": "Hızlı bir düzeltme, tamamlama veya yeniden düzenleme mi gerekiyor? Kilo çevredeki bağlamı kullanarak anında iyileştirmeler sunacak, seni akışta tutacak. <DocsLink>Kısayolu gör</DocsLink>"
 			},
 			"enableCustomProvider": {
@@ -219,7 +224,8 @@
 				"label": "API Yapılandırması",
 				"current": "Şu anda seçili API yapılandırmasını kullan",
 				"description": "Autocomplete istekleri için kullanılacak API yapılandırmasını seç, ya da şu anda seçili olanı kullan"
-			}
+			},
+			"keybindingNotFound": "bulunamadı"
 		}
 	},
 	"virtualProvider": {
@@ -251,6 +257,7 @@
 	},
 	"invalidModel": {
 		"alphaPeriodEnded": "🎉 {{model}} için alfa dönemi sona erdi! Devam etmek için farklı bir model seçin.",
+		"notAllowedForTeam": "⚠️ Organizasyonunuz {{model}} modelinin kullanımına izin vermiyor. Devam etmek için farklı bir model seçin.",
 		"modelUnavailable": "⚠️ {{model}} modeli kullanılamıyor. Devam etmek için farklı bir model seçin.",
 		"continueWith": "{{model}} ile devam et",
 		"continue": "Devam et"

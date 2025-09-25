@@ -110,7 +110,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			togglePinnedApiConfig,
 			localWorkflows, // kilocode_change
 			globalWorkflows, // kilocode_change
-			taskHistory,
+			taskHistoryVersion, // kilocode_change
 			clineMessages,
 			workspaceFolders,
 			activeWorkspacePath,
@@ -257,7 +257,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		// Use custom hook for prompt history navigation
 		const { handleHistoryNavigation, resetHistoryNavigation, resetOnInputChange } = usePromptHistory({
 			clineMessages,
-			taskHistory,
+			taskHistoryVersion, // kilocode_change
 			cwd,
 			inputValue,
 			setInputValue,
@@ -1354,6 +1354,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						"pr-9",
 						"z-10",
 						"forced-color-adjust-none",
+						"pb-16", // kilocode_change
 					)}
 					style={{
 						color: "transparent",

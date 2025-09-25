@@ -7,8 +7,12 @@ import {
 	type InstallMarketplaceItemOptions,
 	type MarketplaceItem,
 	type ShareVisibility,
+	type QueuedMessage,
 	marketplaceItemSchema,
-	CommitRange, // kilocode_change
+	// kilocode_change start
+	CommitRange,
+	HistoryItem,
+	// kilocode_change end
 } from "@roo-code/types"
 
 import { Mode } from "./modes"
@@ -269,8 +273,12 @@ export interface WebviewMessage {
 		| "kiloCodeImageApiKey"
 		| "openRouterImageGenerationSelectedModel"
 		| "switchWorkspace"
+		| "queueMessage"
+		| "removeQueuedMessage"
+		| "editQueuedMessage"
+		| "dismissUpsell"
+		| "getDismissedUpsells"
 	text?: string
-	path?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"
 	disabled?: boolean

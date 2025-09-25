@@ -13,8 +13,14 @@
 		"addCredit": "Ajouter du crédit",
 		"lowBalance": "Votre solde Kilo Code est bas"
 	},
+	"pagination": {
+		"previous": "Précédent",
+		"next": "Suivant",
+		"page": "Page {{page}} / {{count}}"
+	},
 	"invalidModel": {
 		"alphaPeriodEnded": "🎉 La période alpha pour {{model}} est terminée ! Changez vers un modèle différent pour continuer.",
+		"notAllowedForTeam": "⚠️ Votre organisation n'autorise pas l'utilisation du modèle {{model}}. Changez vers un modèle différent pour continuer.",
 		"modelUnavailable": "⚠️ Le modèle {{model}} n'est pas disponible. Changez vers un modèle différent pour continuer.",
 		"continueWith": "Continuer avec {{model}}",
 		"continue": "Continuer"
@@ -43,7 +49,8 @@
 			"logout": "Se déconnecter de Kilo Code",
 			"automaticFetch": "Les derniers modèles sont automatiquement disponibles dans Kilo Code. Si vous ne savez pas quel modèle choisir, Kilo Code fonctionne mieux avec les modèles recommandés listés en haut en <strong>gras</strong>.",
 			"providerRouting": {
-				"title": "Kilo Code - Routage des fournisseurs OpenRouter",
+				"title": "Routage des fournisseurs",
+				"managedByOrganization": "Les paramètres de routage des fournisseurs sont gérés par votre organisation.",
 				"description": "Kilo Code achemine les demandes vers les meilleurs fournisseurs disponibles pour votre modèle. Par défaut, les demandes sont réparties entre les principaux fournisseurs afin de maximiser le temps de disponibilité. Cependant, vous pouvez choisir un fournisseur spécifique à utiliser pour ce modèle.",
 				"sorting": {
 					"default": "Tri des fournisseurs par défaut",
@@ -197,11 +204,10 @@
 	"ghost": {
 		"title": "Autocomplete",
 		"settings": {
-			"autoTrigger": "Déclenchement Automatique",
 			"triggers": "Déclencheurs",
 			"keybindingDescription": "Les fonctionnalités Autocomplete peuvent être déclenchées par des commandes. Tu peux configurer les <DocsLink>Raccourcis Clavier ici</DocsLink>.",
 			"enableAutoTrigger": {
-				"label": "Activer Autocomplete",
+				"label": "Pause pour Compléter",
 				"description": "Quand activé, Kilo Code déclenchera automatiquement Autocomplete quand tu arrêtes de taper. Cela peut être utile pour des corrections rapides et des suggestions."
 			},
 			"autoTriggerDelay": {
@@ -209,23 +215,24 @@
 				"description": "Le délai en secondes avant que Kilo Code déclenche Autocomplete après que tu aies arrêté de taper. Un délai plus court signifie des suggestions plus rapides, mais peut être plus intensif en ressources."
 			},
 			"enableQuickInlineTaskKeybinding": {
-				"label": "Tâche Rapide",
-				"description": "Tu n'as besoin que d'un changement rapide ? Sélectionne du code (ou pas !) et appuie sur Cmd+I. Décris ton objectif en français simple (\"créer un composant React avec ces props\", \"ajouter la gestion d'erreurs à cette fonction\"), et obtiens plusieurs suggestions prêtes à l'emploi directement dans ton éditeur. <DocsLink>Voir le raccourci</DocsLink>"
+				"label": "Tâche rapide ({{keybinding}})",
+				"description": "Tu n'as besoin que d'un changement rapide ? Sélectionne du code (ou pas !) et appuie sur Cmd+I. Décris ton objectif en français simple (\"créer un composant React avec ces props\", \"ajouter la gestion d'erreurs à cette fonction\"), et obtiens plusieurs suggestions prêtes à l'emploi directement dans ton éditeur. <DocsLink>Modifier le raccourci</DocsLink>"
 			},
 			"enableSmartInlineTaskKeybinding": {
-				"label": "Autocomplete Manuel",
-				"description": "Besoin d'une correction rapide, d'un complément ou d'une refactorisation ? Kilo utilisera le contexte environnant pour offrir des améliorations immédiates, te gardant dans le flux. <DocsLink>Voir le raccourci</DocsLink>"
+				"label": "Saisie automatique manuelle ({{keybinding}})",
+				"description": "Besoin d'une correction rapide, d'un complément ou d'une refactorisation ? Kilo utilisera le contexte environnant pour offrir des améliorations immédiates, te gardant dans le flux. <DocsLink>Modifier le raccourci</DocsLink>"
 			},
 			"enableCustomProvider": {
 				"label": "Utiliser un fournisseur personnalisé",
-				"description": "Autocomplete utilise tes identifiants KiloCode / OpenRouter / Mistral pour utiliser le modèle Codestral par défaut"
+				"description": "Autocomplete utilise tes identifiants Kilo Code / OpenRouter / Mistral pour utiliser le modèle Codestral par défaut"
 			},
 			"provider": "Fournisseur",
 			"apiConfigId": {
 				"label": "Configuration API",
 				"current": "Utiliser la configuration API actuellement sélectionnée",
 				"description": "Sélectionne une configuration API à utiliser pour les prompts Autocomplete, ou utilise simplement celle qui est actuellement sélectionnée"
-			}
+			},
+			"keybindingNotFound": "introuvable"
 		}
 	},
 	"virtualProvider": {

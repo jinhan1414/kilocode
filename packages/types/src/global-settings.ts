@@ -42,6 +42,7 @@ export const globalSettingsSchema = z.object({
 	lastShownAnnouncementId: z.string().optional(),
 	customInstructions: z.string().optional(),
 	taskHistory: z.array(historyItemSchema).optional(),
+	dismissedUpsells: z.array(z.string()).optional(),
 
 	// Image generation settings (experimental) - flattened for simplicity
 	openRouterImageApiKey: z.string().optional(),
@@ -151,8 +152,6 @@ export const globalSettingsSchema = z.object({
 	enableMcpServerCreation: z.boolean().optional(),
 	mcpMarketplaceCatalog: z.any().optional(), // kilocode_change: MCP marketplace catalog
 
-	remoteControlEnabled: z.boolean().optional(),
-
 	mode: z.string().optional(),
 	modeApiConfigs: z.record(z.string(), z.string()).optional(),
 	customModes: z.array(modeConfigSchema).optional(),
@@ -209,11 +208,11 @@ export const SECRET_STATE_KEYS = [
 	"groqApiKey",
 	"chutesApiKey",
 	"litellmApiKey",
+	"deepInfraApiKey",
 	"codeIndexOpenAiKey",
 	"codeIndexQdrantApiKey",
 	// kilocode_change start
 	"kilocodeToken",
-	"deepInfraApiKey",
 	// kilocode_change end
 	"codebaseIndexOpenAiCompatibleApiKey",
 	"codebaseIndexGeminiApiKey",
@@ -339,8 +338,6 @@ export const EVALS_SETTINGS: RooCodeSettings = {
 	telemetrySetting: "enabled",
 
 	mcpEnabled: false,
-
-	remoteControlEnabled: false,
 
 	mode: "code", // "architect",
 

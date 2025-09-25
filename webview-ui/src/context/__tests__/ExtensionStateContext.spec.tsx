@@ -230,7 +230,8 @@ describe("mergeExtensionState", () => {
 			mcpEnabled: false,
 			enableMcpServerCreation: false,
 			clineMessages: [],
-			taskHistory: [],
+			taskHistoryFullLength: 0, // kilocode_change
+			taskHistoryVersion: 0, // kilocode_change
 			shouldShowAnnouncement: false,
 			enableCheckpoints: true,
 			writeDelayMs: 1000,
@@ -259,6 +260,9 @@ describe("mergeExtensionState", () => {
 			kilocodeDefaultModel: openRouterDefaultModelId,
 			workspaceFolders: [],
 			activeWorkspacePath: "",
+			remoteControlEnabled: false,
+			taskSyncEnabled: false,
+			featureRoomoteControlEnabled: false,
 		}
 
 		const prevState: ExtensionState = {
@@ -277,6 +281,7 @@ describe("mergeExtensionState", () => {
 				morphFastApply: false, // kilocode_change
 				newTaskRequireTodos: false,
 				imageGeneration: false,
+				runSlashCommand: false,
 			} as Record<ExperimentId, boolean>,
 		}
 
@@ -294,6 +299,7 @@ describe("mergeExtensionState", () => {
 			morphFastApply: false, // kilocode_change
 			newTaskRequireTodos: false,
 			imageGeneration: false,
+			runSlashCommand: false,
 		})
 	})
 })

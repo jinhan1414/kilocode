@@ -13,8 +13,14 @@
 		"addCredit": "Krediet toevoegen",
 		"lowBalance": "Uw Kilo Code-saldo is laag"
 	},
+	"pagination": {
+		"previous": "Vorige",
+		"next": "Volgende",
+		"page": "Pagina {{page}} / {{count}}"
+	},
 	"invalidModel": {
 		"alphaPeriodEnded": "🎉 De alfaperiode voor {{model}} is beëindigd! Verander naar een ander model om door te gaan.",
+		"notAllowedForTeam": "⚠️ Je organisatie staat het gebruik van het {{model}} model niet toe. Verander naar een ander model om door te gaan.",
 		"modelUnavailable": "⚠️ Het model {{model}} is niet beschikbaar. Verander naar een ander model om door te gaan.",
 		"continueWith": "Doorgaan met {{model}}",
 		"continue": "Doorgaan"
@@ -43,7 +49,8 @@
 			"logout": "Uitloggen bij Kilo Code",
 			"automaticFetch": "De nieuwste modellen zijn automatisch beschikbaar in Kilo Code. Als je niet zeker weet welk model je moet kiezen, werkt Kilo Code het beste met de aanbevolen modellen die bovenaan in <strong>vetgedrukte tekst</strong> staan.",
 			"providerRouting": {
-				"title": "Kilo Code - OpenRouter Provider Routing",
+				"title": "Provider Routing",
+				"managedByOrganization": "De Provider Routing instellingen worden beheerd door je organisatie.",
 				"description": "Kilo Code routeert verzoeken naar de beste beschikbare providers voor uw model. Standaard worden verzoeken verdeeld over de beste providers om de uptime te maximaliseren. U kunt echter een specifieke provider kiezen om voor dit model te gebruiken.",
 				"sorting": {
 					"default": "Standaard provider sortering",
@@ -197,11 +204,10 @@
 	"ghost": {
 		"title": "Autocomplete",
 		"settings": {
-			"autoTrigger": "Automatische Activering",
 			"triggers": "Triggers",
 			"keybindingDescription": "Autocomplete-functies kunnen worden geactiveerd door commando's. Je kunt de <DocsLink>Toetsenbordsnelkoppelingen hier</DocsLink> configureren.",
 			"enableAutoTrigger": {
-				"label": "Autocomplete Inschakelen",
+				"label": "Pauze om te Voltooien",
 				"description": "Wanneer ingeschakeld, zal Kilo Code automatisch Autocomplete activeren wanneer je stopt met typen. Dit kan nuttig zijn voor snelle fixes en suggesties."
 			},
 			"autoTriggerDelay": {
@@ -209,23 +215,24 @@
 				"description": "De vertraging in seconden voordat Kilo Code Autocomplete activeert nadat je bent gestopt met typen. Een kortere vertraging betekent snellere suggesties, maar kan meer resource-intensief zijn."
 			},
 			"enableQuickInlineTaskKeybinding": {
-				"label": "Snelle Taak",
-				"description": "Heb je alleen een snelle wijziging nodig? Selecteer wat code (of niet!) en druk op Cmd+I. Beschrijf je doel in eenvoudig Nederlands (\"maak een React-component met deze props\", \"voeg foutafhandeling toe aan deze functie\"), en krijg meerdere, klaar-voor-gebruik suggesties direct in je editor. <DocsLink>Snelkoppeling bekijken</DocsLink>"
+				"label": "Snelle Taak ({{keybinding}})",
+				"description": "Heb je alleen een snelle wijziging nodig? Selecteer wat code (of niet!) en druk op Cmd+I. Beschrijf je doel in eenvoudig Nederlands (\"maak een React-component met deze props\", \"voeg foutafhandeling toe aan deze functie\"), en krijg meerdere, klaar-voor-gebruik suggesties direct in je editor. <DocsLink>Sneltoets bewerken</DocsLink>"
 			},
 			"enableSmartInlineTaskKeybinding": {
-				"label": "Handmatige Autocomplete",
-				"description": "Heb je een snelle fix, voltooiing of refactor nodig? Kilo zal de omringende context gebruiken om onmiddellijke verbeteringen aan te bieden, waardoor je in de flow blijft. <DocsLink>Snelkoppeling bekijken</DocsLink>"
+				"label": "Handmatige Automatische Aanvulling ({{keybinding}})",
+				"description": "Heb je een snelle fix, voltooiing of refactor nodig? Kilo zal de omringende context gebruiken om onmiddellijke verbeteringen aan te bieden, waardoor je in de flow blijft. <DocsLink>Sneltoets bewerken</DocsLink>"
 			},
 			"enableCustomProvider": {
 				"label": "Aangepaste provider gebruiken",
-				"description": "Autocomplete gebruikt standaard je KiloCode / OpenRouter / Mistral-referenties om het Codestral-model te gebruiken"
+				"description": "Autocomplete gebruikt standaard je Kilo Code / OpenRouter / Mistral-referenties om het Codestral-model te gebruiken"
 			},
 			"provider": "Provider",
 			"apiConfigId": {
 				"label": "API-Configuratie",
 				"current": "Gebruik momenteel geselecteerde API-configuratie",
 				"description": "Selecteer een API-configuratie om te gebruiken voor Autocomplete-prompts, of gebruik gewoon wat er momenteel is geselecteerd"
-			}
+			},
+			"keybindingNotFound": "niet gevonden"
 		}
 	},
 	"virtualProvider": {

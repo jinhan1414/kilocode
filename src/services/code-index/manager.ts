@@ -1,5 +1,4 @@
 import * as vscode from "vscode"
-import { getWorkspacePath } from "../../utils/path"
 import { ContextProxy } from "../../core/config/ContextProxy"
 import { VectorStoreSearchResult } from "./interfaces"
 import { IndexingState } from "./interfaces/manager"
@@ -133,7 +132,7 @@ export class CodeIndexManager {
 		}
 
 		// 3. Check if workspace is available
-		const workspacePath = getWorkspacePath()
+		const workspacePath = this.workspacePath
 		if (!workspacePath) {
 			this._stateManager.setSystemState("Standby", "No workspace folder open")
 			return { requiresRestart }
@@ -306,7 +305,7 @@ export class CodeIndexManager {
 		)
 
 		const ignoreInstance = ignore()
-		const workspacePath = getWorkspacePath()
+		const workspacePath = this.workspacePath
 
 		if (!workspacePath) {
 			this._stateManager.setSystemState("Standby", "")
@@ -341,13 +340,20 @@ export class CodeIndexManager {
 			rooIgnoreController,
 		)
 
-		// Validate embedder configuration before proceeding
-		const validationResult = await this._serviceFactory.validateEmbedder(embedder)
-		if (!validationResult.valid) {
-			const errorMessage = validationResult.error || "Embedder configuration validation failed"
-			this._stateManager.setSystemState("Error", errorMessage)
-			throw new Error(errorMessage)
+		// kilocode_change start
+		// Only validate the embedder if it matches the currently configured provider
+		const config = this._configManager!.getConfig()
+		const shouldValidate = embedder.embedderInfo.name === config.embedderProvider
+
+		if (shouldValidate) {
+			const validationResult = await this._serviceFactory.validateEmbedder(embedder)
+			if (!validationResult.valid) {
+				const errorMessage = validationResult.error || "Embedder configuration validation failed"
+				this._stateManager.setSystemState("Error", errorMessage)
+				throw new Error(errorMessage)
+			}
 		}
+		// kilocode_change end
 
 		// (Re)Initialize orchestrator
 		this._orchestrator = new CodeIndexOrchestrator(

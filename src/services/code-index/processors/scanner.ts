@@ -29,15 +29,34 @@ import { isPathInIgnoredDirectory } from "../../glob/ignore-utils"
 import { TelemetryService } from "@roo-code/telemetry"
 import { TelemetryEventName } from "@roo-code/types"
 import { sanitizeErrorMessage } from "../shared/validation-helpers"
+import { Package } from "../../../shared/package"
 
 export class DirectoryScanner implements IDirectoryScanner {
+	private readonly batchSegmentThreshold: number
+
 	constructor(
 		private readonly embedder: IEmbedder,
 		private readonly qdrantClient: IVectorStore,
 		private readonly codeParser: ICodeParser,
 		private readonly cacheManager: CacheManager,
 		private readonly ignoreInstance: Ignore,
-	) {}
+		batchSegmentThreshold?: number,
+	) {
+		// Get the configurable batch size from VSCode settings, fallback to default
+		// If not provided in constructor, try to get from VSCode settings
+		if (batchSegmentThreshold !== undefined) {
+			this.batchSegmentThreshold = batchSegmentThreshold
+		} else {
+			try {
+				this.batchSegmentThreshold = vscode.workspace
+					.getConfiguration(Package.name)
+					.get<number>("codeIndex.embeddingBatchSize", BATCH_SEGMENT_THRESHOLD)
+			} catch {
+				// In test environment, vscode.workspace might not be available
+				this.batchSegmentThreshold = BATCH_SEGMENT_THRESHOLD
+			}
+		}
+	}
 
 	/**
 	 * Recursively scans a directory for code blocks in supported files.
@@ -153,7 +172,7 @@ export class DirectoryScanner implements IDirectoryScanner {
 									addedBlocksFromFile = true
 
 									// Check if batch threshold is met
-									if (currentBatchBlocks.length >= BATCH_SEGMENT_THRESHOLD) {
+									if (currentBatchBlocks.length >= this.batchSegmentThreshold) {
 										// Wait if we've reached the maximum pending batches
 										while (pendingBatchCount >= MAX_PENDING_BATCHES) {
 											// Wait for at least one batch to complete
@@ -335,7 +354,16 @@ export class DirectoryScanner implements IDirectoryScanner {
 		onError?: (error: Error) => void,
 		onBlocksIndexed?: (indexedCount: number) => void,
 	): Promise<void> {
-		if (batchBlocks.length === 0) return
+		// kilocode_change start
+		if (batchBlocks.length === 0) {
+			console.debug("[DirectoryScanner] Skipping empty batch processing")
+			return
+		}
+
+		console.debug(
+			`[DirectoryScanner] Starting to process batch of ${batchBlocks.length} blocks in workspace ${scanWorkspace}`,
+		)
+		// kilocode_change end
 
 		let attempts = 0
 		let success = false
@@ -343,8 +371,15 @@ export class DirectoryScanner implements IDirectoryScanner {
 
 		while (attempts < MAX_BATCH_RETRIES && !success) {
 			attempts++
+			// kilocode_change start
+			console.debug(
+				`[DirectoryScanner] Processing batch attempt ${attempts}/${MAX_BATCH_RETRIES} for ${batchBlocks.length} blocks`,
+			)
+			// kilocode_change end
+
 			try {
 				// --- Deletion Step ---
+				console.debug("[DirectoryScanner] Starting deletion step for modified files") // kilocode_change
 				const uniqueFilePaths = [
 					...new Set(
 						batchFileInfos
@@ -352,9 +387,20 @@ export class DirectoryScanner implements IDirectoryScanner {
 							.map((info) => info.filePath),
 					),
 				]
+				// kilocode_change start
+				console.debug(
+					`[DirectoryScanner] Identified ${uniqueFilePaths.length} modified files to delete points for`,
+				)
+				// kilocode_change end
+
 				if (uniqueFilePaths.length > 0) {
 					try {
 						await this.qdrantClient.deletePointsByMultipleFilePaths(uniqueFilePaths)
+						// kilocode_change start
+						console.debug(
+							`[DirectoryScanner] Successfully deleted points for ${uniqueFilePaths.length} files`,
+						)
+						// kilocode_change end
 					} catch (deleteError: any) {
 						const errorStatus =
 							deleteError?.status || deleteError?.response?.status || deleteError?.statusCode
@@ -386,9 +432,12 @@ export class DirectoryScanner implements IDirectoryScanner {
 				// --- End Deletion Step ---
 
 				// Create embeddings for batch
+				console.debug(`[DirectoryScanner] Creating embeddings for ${batchTexts.length} texts`) // kilocode_change
 				const { embeddings } = await this.embedder.createEmbeddings(batchTexts)
+				console.debug(`[DirectoryScanner] Successfully created ${embeddings.length} embeddings`) // kilocode_change
 
 				// Prepare points for Qdrant
+				console.debug("[DirectoryScanner] Preparing points for Qdrant upsert") // kilocode_change
 				const points = batchBlocks.map((block, index) => {
 					const normalizedAbsolutePath = generateNormalizedAbsolutePath(block.file_path, scanWorkspace)
 
@@ -407,16 +456,27 @@ export class DirectoryScanner implements IDirectoryScanner {
 						},
 					}
 				})
+				console.debug(`[DirectoryScanner] Prepared ${points.length} points for Qdrant`) // kilocode_change
 
 				// Upsert points to Qdrant
+				console.debug("[DirectoryScanner] Starting Qdrant upsert") // kilocode_change
 				await this.qdrantClient.upsertPoints(points)
+				console.debug("[DirectoryScanner] Completed Qdrant upsert") // kilocode_change
 				onBlocksIndexed?.(batchBlocks.length)
 
 				// Update hashes for successfully processed files in this batch
+				console.debug("[DirectoryScanner] Updating file hashes in cache") // kilocode_change
 				for (const fileInfo of batchFileInfos) {
 					await this.cacheManager.updateHash(fileInfo.filePath, fileInfo.fileHash)
 				}
+				console.debug("[DirectoryScanner] Completed updating file hashes in cache") // kilocode_change
+
 				success = true
+				// kilocode_change start
+				console.debug(
+					`[DirectoryScanner] Successfully processed batch of ${batchBlocks.length} blocks after ${attempts} attempt(s)`,
+				)
+				// kilocode_change end
 			} catch (error) {
 				lastError = error as Error
 				console.error(
@@ -433,6 +493,7 @@ export class DirectoryScanner implements IDirectoryScanner {
 
 				if (attempts < MAX_BATCH_RETRIES) {
 					const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempts - 1)
+					console.debug(`[DirectoryScanner] Retrying batch in ${delay}ms`) // kilocode_change
 					await new Promise((resolve) => setTimeout(resolve, delay))
 				}
 			}

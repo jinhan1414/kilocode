@@ -7,7 +7,6 @@ import { isBinaryFile } from "isbinaryfile"
 import { mentionRegexGlobal, commandRegexGlobal, unescapeSpaces } from "../../shared/context-mentions"
 
 import { getCommitInfo, getWorkingState } from "../../utils/git"
-import { getWorkspacePath } from "../../utils/path"
 
 import { openFile } from "../../integrations/misc/open-file"
 import { extractTextFromFile } from "../../integrations/misc/extract-text"
@@ -21,6 +20,7 @@ import { RooIgnoreController } from "../ignore/RooIgnoreController"
 import { getCommand, type Command } from "../../services/command/commands"
 
 import { t } from "../../i18n"
+import { isSupportedImageFormat } from "../tools/helpers/imageHelpers" // kilocode_change
 
 function getUrlErrorMessage(error: unknown): string {
 	const errorMessage = error instanceof Error ? error.message : String(error)
@@ -49,13 +49,8 @@ function getUrlErrorMessage(error: unknown): string {
 	return t("common:errors.url_fetch_failed", { error: errorMessage })
 }
 
-export async function openMention(mention?: string): Promise<void> {
+export async function openMention(cwd: string, mention?: string): Promise<void> {
 	if (!mention) {
-		return
-	}
-
-	const cwd = getWorkspacePath()
-	if (!cwd) {
 		return
 	}
 
@@ -283,6 +278,11 @@ async function getFileOrFolderContent(
 			if (rooIgnoreController && !rooIgnoreController.validateAccess(absPath)) {
 				return `(File ${mentionPath} is ignored by .kilocodeignore)`
 			}
+			// kilocode_change start
+			if (isSupportedImageFormat(path.extname(absPath))) {
+				return `(Image of size ${stats.size} bytes, the read_file tool may be able to read it)`
+			}
+			// kilocode_change end
 			try {
 				const content = await extractTextFromFile(absPath, maxReadFileLine)
 				return content

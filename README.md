@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=kilocode.Kilo-Code"><img src="https://img.shields.io/visual-studio-marketplace/v/kilocode.Kilo-Code.svg?label=VS%20Code%20Marketplace" alt="VS Code Marketplace"></a>
-  <a href="https://x.com/kilo_code"><img src="https://img.shields.io/twitter/follow/kilo_code?style=flat&logo=x&color=555" alt="X (Twitter)"></a>
+  <a href="https://x.com/kilocode"><img src="https://img.shields.io/twitter/follow/kilocode?style=flat&logo=x&color=555" alt="X (Twitter)"></a>
   <a href="https://blog.kilocode.ai"><img src="https://img.shields.io/badge/Blog-555?style=flat&logo=substack&logoColor=white" alt="Substack Blog"></a>
   <a href="https://kilocode.ai/discord"><img src="https://img.shields.io/discord/1349288496988160052?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://www.reddit.com/r/kilocode/"><img src="https://img.shields.io/reddit/subreddit-subscribers/kilocode?style=flat&logo=reddit&logoColor=white" alt="Reddit"></a>
