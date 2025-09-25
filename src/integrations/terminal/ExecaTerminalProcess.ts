@@ -1,4 +1,5 @@
 import { execa, ExecaError } from "execa"
+import { execSync } from "child_process"
 import psTree from "ps-tree"
 import process from "process"
 
@@ -57,18 +58,60 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 			// Find the actual command PID after a small delay
 			if (this.pid) {
 				this.pidUpdatePromise = new Promise<void>((resolve) => {
-					setTimeout(() => {
-						psTree(this.pid!, (err, children) => {
-							if (!err && children.length > 0) {
-								// Update PID to the first child (the actual command)
-								const actualPid = parseInt(children[0].PID)
-								if (!isNaN(actualPid)) {
-									this.pid = actualPid
+					// Use multiple attempts with increasing delays for better reliability
+					const updatePidWithRetry = (attempt: number = 1) => {
+						const maxAttempts = 5
+						const baseDelay = 50
+
+						setTimeout(() => {
+							psTree(this.pid!, (err, children) => {
+								if (!err && children.length > 0) {
+									// On Windows, filter out system processes and find the most likely command process
+									let actualPid: number | null = null
+
+									if (process.platform === "win32") {
+										// On Windows, look for processes that are likely the actual command
+										// Skip common system processes
+										const systemProcesses = ["conhost.exe", "cmd.exe", "powershell.exe", "pwsh.exe"]
+										const commandChildren = children.filter(
+											(child) =>
+												!systemProcesses.some((sysProc) =>
+													child.COMMAND?.toLowerCase().includes(sysProc.toLowerCase()),
+												),
+										)
+
+										if (commandChildren.length > 0) {
+											actualPid = parseInt(commandChildren[0].PID)
+										}
+									} else {
+										// On Unix-like systems, first child is usually the command
+										actualPid = parseInt(children[0].PID)
+									}
+
+									if (actualPid && !isNaN(actualPid)) {
+										console.log(
+											`[ExecaTerminalProcess#run] Updated PID from ${this.pid} to ${actualPid} (${children[0].COMMAND || "unknown"})`,
+										)
+										this.pid = actualPid
+										resolve()
+										return
+									}
 								}
-							}
-							resolve()
-						})
-					}, 100)
+
+								// Retry if we haven't found a suitable PID and haven't exceeded max attempts
+								if (attempt < maxAttempts) {
+									updatePidWithRetry(attempt + 1)
+								} else {
+									console.warn(
+										`[ExecaTerminalProcess#run] Could not find actual command PID after ${maxAttempts} attempts`,
+									)
+									resolve()
+								}
+							})
+						}, baseDelay * attempt) // Exponential backoff: 50ms, 100ms, 150ms, 200ms, 250ms
+					}
+
+					updatePidWithRetry()
 				})
 			}
 
@@ -162,6 +205,8 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 
 		// Function to perform the kill operations
 		const performKill = () => {
+			const isWindows = process.platform === "win32"
+
 			// Try to kill using the subprocess object
 			if (this.subprocess) {
 				try {
@@ -175,12 +220,17 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 
 			// Kill the stored PID (which should be the actual command after our update)
 			if (this.pid) {
-				try {
-					process.kill(this.pid, "SIGKILL")
-				} catch (e) {
-					console.warn(
-						`[ExecaTerminalProcess#abort] Failed to kill process ${this.pid}: ${e instanceof Error ? e.message : String(e)}`,
-					)
+				if (isWindows) {
+					// On Windows, try taskkill first as it's more reliable
+					this.killProcessWindows(this.pid)
+				} else {
+					try {
+						process.kill(this.pid, "SIGKILL")
+					} catch (e) {
+						console.warn(
+							`[ExecaTerminalProcess#abort] Failed to kill process ${this.pid}: ${e instanceof Error ? e.message : String(e)}`,
+						)
+					}
 				}
 			}
 		}
@@ -200,13 +250,18 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 					const pids = children.map((p) => parseInt(p.PID))
 					console.error(`[ExecaTerminalProcess#abort] SIGKILL children -> ${pids.join(", ")}`)
 
+					const isWindows = process.platform === "win32"
 					for (const pid of pids) {
-						try {
-							process.kill(pid, "SIGKILL")
-						} catch (e) {
-							console.warn(
-								`[ExecaTerminalProcess#abort] Failed to send SIGKILL to child PID ${pid}: ${e instanceof Error ? e.message : String(e)}`,
-							)
+						if (isWindows) {
+							this.killProcessWindows(pid)
+						} else {
+							try {
+								process.kill(pid, "SIGKILL")
+							} catch (e) {
+								console.warn(
+									`[ExecaTerminalProcess#abort] Failed to send SIGKILL to child PID ${pid}: ${e instanceof Error ? e.message : String(e)}`,
+								)
+							}
 						}
 					}
 				} else {
@@ -215,6 +270,61 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 					)
 				}
 			})
+		}
+	}
+
+	/**
+	 * Windows-specific process termination using taskkill
+	 */
+	private killProcessWindows(pid: number) {
+		console.log(`[ExecaTerminalProcess#killProcessWindows] Attempting to terminate process ${pid}`)
+
+		try {
+			// Use taskkill with /T (terminate tree) and /F (force) flags
+			const result = execSync(`taskkill /pid ${pid} /T /F`, {
+				stdio: "pipe",
+				encoding: "utf8",
+				timeout: 5000, // 5 second timeout
+			})
+			console.log(`[ExecaTerminalProcess#killProcessWindows] Successfully terminated process ${pid} and its tree`)
+			if (result) {
+				console.log(`[ExecaTerminalProcess#killProcessWindows] taskkill output: ${result}`)
+			}
+		} catch (e) {
+			const error = e instanceof Error ? e : new Error(String(e))
+			console.warn(`[ExecaTerminalProcess#killProcessWindows] taskkill failed for PID ${pid}: ${error.message}`)
+
+			// Check if it's a permission error
+			if (error.message.includes("Access is denied") || error.message.includes("Access denied")) {
+				console.error(
+					`[ExecaTerminalProcess#killProcessWindows] Permission denied when trying to terminate PID ${pid}. This may require administrator privileges.`,
+				)
+			} else if (error.message.includes("The process") && error.message.includes("not found")) {
+				console.log(
+					`[ExecaTerminalProcess#killProcessWindows] Process ${pid} was already terminated or not found`,
+				)
+				return // Process already gone, no need for fallback
+			}
+
+			// Fallback to process.kill
+			try {
+				console.log(`[ExecaTerminalProcess#killProcessWindows] Trying fallback process.kill for PID ${pid}`)
+				process.kill(pid, "SIGKILL")
+				console.log(`[ExecaTerminalProcess#killProcessWindows] Fallback process.kill succeeded for PID ${pid}`)
+			} catch (fallbackError) {
+				const fallbackErr = fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError))
+				console.error(
+					`[ExecaTerminalProcess#killProcessWindows] All termination methods failed for PID ${pid}. Final error: ${fallbackErr.message}`,
+				)
+
+				// Provide user-friendly error message
+				console.error(
+					`[ExecaTerminalProcess#killProcessWindows] Unable to terminate process ${pid}. You may need to:`,
+					`1. Use Task Manager to manually terminate the process`,
+					`2. Run VSCode with administrator privileges`,
+					`3. Restart VSCode to clean up orphaned processes`,
+				)
+			}
 		}
 	}
 
