@@ -3102,9 +3102,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		return this.tokenUsageSnapshot
 	}
 
-	public get cwd() {
-		return this.workspacePath
-	}
+	// public get cwd() {
+	// 	return this.workspacePath
+	// }
 
 	/**
 	 * Process any queued messages by dequeuing and submitting them.

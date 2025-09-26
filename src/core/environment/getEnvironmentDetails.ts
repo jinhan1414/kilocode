@@ -253,6 +253,8 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 	details += `<name>${modeDetails.name}</name>\n`
 	details += `<model>${modelId}</model>\n`
 
+	details += `\n\n# Current Workspace Directory\n`
+	details += `The current workspace directory is \`${cline.cwd.toPosix()}\`. All file paths are relative to this directory. Be aware that the user may switch to a different workspace during the session.\n`
 	if (Experiments.isEnabled(experiments ?? {}, EXPERIMENT_IDS.POWER_STEERING)) {
 		details += `<role>${modeDetails.roleDefinition}</role>\n`
 
@@ -260,6 +262,7 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 			details += `<custom_instructions>${modeDetails.customInstructions}</custom_instructions>\n`
 		}
 	}
+	details += `\n\n# Current Workspace Directory (${cline.cwd.toPosix()}) Files\n`
 
 	if (includeFileDetails) {
 		details += `\n\n# Current Workspace Directory (${cline.cwd.toPosix()}) Files\n`

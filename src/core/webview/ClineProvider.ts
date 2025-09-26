@@ -2171,6 +2171,8 @@ export class ClineProvider
 
 		// Return the same structure as before.
 		return {
+			workspaceFolders: this.workspaceFolders,
+			activeWorkspacePath: this.activeWorkspacePath,
 			apiConfiguration: providerSettings,
 			kilocodeDefaultModel: await getKilocodeDefaultModel(
 				providerSettings.kilocodeToken,

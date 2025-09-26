@@ -31,6 +31,7 @@ export type AudioType = "notification" | "celebration" | "progress_loop"
 export interface UpdateTodoListPayload {
 	todos: any[]
 }
+export type EditQueuedMessagePayload = Pick<QueuedMessage, "id" | "text" | "images">
 
 export interface WebviewMessage {
 	type:
@@ -147,6 +148,7 @@ export interface WebviewMessage {
 		| "mcpEnabled"
 		| "enableMcpServerCreation"
 		| "remoteControlEnabled"
+		| "taskSyncEnabled"
 		| "searchCommits"
 		| "alwaysApproveResubmit"
 		| "requestDelaySeconds"
@@ -220,6 +222,7 @@ export interface WebviewMessage {
 		| "cloudButtonClicked"
 		| "rooCloudSignIn"
 		| "rooCloudSignOut"
+		| "rooCloudManualUrl"
 		| "condenseTaskContextRequest"
 		| "requestIndexingStatus"
 		| "startIndexing"
@@ -237,6 +240,7 @@ export interface WebviewMessage {
 		| "fixMermaidSyntax" // kilocode_change
 		| "mermaidFixResponse" // kilocode_change
 		| "openGlobalKeybindings" // kilocode_change
+		| "getKeybindings" // kilocode_change
 		| "openExternal"
 		| "filterMarketplaceItems"
 		| "mcpButtonClicked"
@@ -252,6 +256,8 @@ export interface WebviewMessage {
 		| "editMessage" // kilocode_change
 		| "systemNotificationsEnabled" // kilocode_change
 		| "dismissNotificationId" // kilocode_change
+		| "tasksByIdRequest" // kilocode_change
+		| "taskHistoryRequest" // kilocode_change
 		| "shareTaskSuccess"
 		| "exportMode"
 		| "exportModeResult"
@@ -279,6 +285,7 @@ export interface WebviewMessage {
 		| "dismissUpsell"
 		| "getDismissedUpsells"
 	text?: string
+	path?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "cloud"
 	disabled?: boolean
@@ -307,7 +314,7 @@ export interface WebviewMessage {
 	filename?: string // kilocode_change
 	ruleType?: string // kilocode_change
 	notificationId?: string // kilocode_change
-	// kilocode_change end
+	commandIds?: string[] // kilocode_change: For getKeybindings
 	serverName?: string
 	toolName?: string
 	alwaysAllow?: boolean
@@ -329,6 +336,7 @@ export interface WebviewMessage {
 	hasSystemPromptOverride?: boolean
 	terminalOperation?: "continue" | "abort"
 	messageTs?: number
+	restoreCheckpoint?: boolean
 	historyPreviewCollapsed?: boolean
 	filters?: { type?: string; search?: string; tags?: string[] }
 	settings?: any
@@ -339,6 +347,8 @@ export interface WebviewMessage {
 	visibility?: ShareVisibility // For share visibility
 	hasContent?: boolean // For checkRulesDirectoryResult
 	checkOnly?: boolean // For deleteCustomMode check
+	upsellId?: string // For dismissUpsell
+	list?: string[] // For dismissedUpsells response
 	codeIndexSettings?: {
 		// Global state settings
 		codebaseIndexEnabled: boolean
@@ -405,6 +415,32 @@ export interface BalanceDataResponsePayload {
 export interface SeeNewChangesPayload {
 	commitRange: CommitRange
 }
+
+export interface TasksByIdRequestPayload {
+	requestId: string
+	taskIds: string[]
+}
+
+export interface TaskHistoryRequestPayload {
+	requestId: string
+	workspace: "current" | "all"
+	sort: "newest" | "oldest" | "mostExpensive" | "mostTokens" | "mostRelevant"
+	favoritesOnly: boolean
+	pageIndex: number
+	search?: string
+}
+
+export interface TasksByIdResponsePayload {
+	requestId: string
+	tasks: HistoryItem[]
+}
+
+export interface TaskHistoryResponsePayload {
+	requestId: string
+	historyItems: HistoryItem[]
+	pageIndex: number
+	pageCount: number
+}
 // kilocode_change end
 
 export const checkoutDiffPayloadSchema = z.object({
@@ -448,6 +484,8 @@ export type WebViewMessagePayload =
 	| ProfileDataResponsePayload
 	| BalanceDataResponsePayload
 	| SeeNewChangesPayload
+	| TasksByIdRequestPayload
+	| TaskHistoryRequestPayload
 	// kilocode_change end
 	| CheckpointDiffPayload
 	| CheckpointRestorePayload
@@ -455,3 +493,4 @@ export type WebViewMessagePayload =
 	| IndexClearedPayload
 	| InstallMarketplaceItemWithParametersPayload
 	| UpdateTodoListPayload
+	| EditQueuedMessagePayload
