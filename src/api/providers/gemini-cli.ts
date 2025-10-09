@@ -190,15 +190,27 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 
 	private async callStreamingEndpoint(method: string, body: any): Promise<NodeJS.ReadableStream> {
 		await this.ensureAuthenticated()
-		const response = await this.authClient.request({
-			url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
-			method: "POST",
-			params: { alt: "sse" },
-			headers: { "Content-Type": "application/json" },
-			responseType: "stream",
-			data: JSON.stringify(body),
-		})
-		return response.data as NodeJS.ReadableStream
+		try {
+			const response = await this.authClient.request({
+				url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
+				method: "POST",
+				params: { alt: "sse" },
+				headers: { "Content-Type": "application/json" },
+				responseType: "stream",
+				data: JSON.stringify(body),
+			})
+			return response.data as NodeJS.ReadableStream
+		} catch (error: any) {
+			const currentCredential = this.credentials![this.options.geminiCliCredentialIndex!]
+			const credName = currentCredential.name || "Unnamed"
+			const credProjectId = currentCredential.projectId || "N/A"
+			console.error(
+				`[GeminiCLI] Error calling streaming ${method} with credential #${this.options.geminiCliCredentialIndex} (Name: ${credName}, ProjectID: ${credProjectId}):`,
+				error.message,
+			)
+
+			throw error
+		}
 	}
 
 	/**
