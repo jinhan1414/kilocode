@@ -173,7 +173,10 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 				error.message,
 			)
 
-			if (retry && (error.response?.status === 401 || error.response?.status === 429)) {
+			if (
+				retry &&
+				(error.response?.status === 403 || error.response?.status === 401 || error.response?.status === 429)
+			) {
 				try {
 					await this.selectNextCredential()
 					return this.callEndpoint(method, body, true)
@@ -187,28 +190,15 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 
 	private async callStreamingEndpoint(method: string, body: any): Promise<NodeJS.ReadableStream> {
 		await this.ensureAuthenticated()
-
-		try {
-			const response = await this.authClient.request({
-				url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
-				method: "POST",
-				params: { alt: "sse" },
-				headers: { "Content-Type": "application/json" },
-				responseType: "stream",
-				data: JSON.stringify(body),
-			})
-			return response.data as NodeJS.ReadableStream
-		} catch (error: any) {
-			const currentCredential = this.credentials![this.options.geminiCliCredentialIndex!]
-			const credName = currentCredential.name || "Unnamed"
-			const credProjectId = currentCredential.projectId || "N/A"
-			console.error(
-				`[GeminiCLI] Error calling streaming ${method} with credential #${this.options.geminiCliCredentialIndex} (Name: ${credName}, ProjectID: ${credProjectId}):`,
-				error.message,
-			)
-
-			throw error
-		}
+		const response = await this.authClient.request({
+			url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
+			method: "POST",
+			params: { alt: "sse" },
+			headers: { "Content-Type": "application/json" },
+			responseType: "stream",
+			data: JSON.stringify(body),
+		})
+		return response.data as NodeJS.ReadableStream
 	}
 
 	/**
@@ -443,7 +433,7 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 				}
 			}
 		} catch (error: any) {
-			if (error.response?.status === 401 || error.response?.status === 429) {
+			if (error.response?.status === 403 || error.response?.status === 401 || error.response?.status === 429) {
 				try {
 					await this.selectNextCredential()
 					// Recursively call to retry
