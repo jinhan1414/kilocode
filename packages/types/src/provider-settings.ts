@@ -12,6 +12,7 @@ import {
 	doubaoModels,
 	featherlessModels,
 	fireworksModels,
+	syntheticModels, // kilocode_change
 	geminiModels,
 	groqModels,
 	ioIntelligenceModels,
@@ -28,55 +29,135 @@ import {
 } from "./providers/index.js"
 
 /**
+ * constants
+ */
+
+export const DEFAULT_CONSECUTIVE_MISTAKE_LIMIT = 3
+
+/**
+ * DynamicProvider
+ *
+ * Dynamic provider requires external API calls in order to get the model list.
+ */
+
+export const dynamicProviders = [
+	"openrouter",
+	"vercel-ai-gateway",
+	"huggingface",
+	"litellm",
+	// kilocode_change start
+	"kilocode-openrouter",
+	"ovhcloud",
+	"chutes",
+	// kilocode_change end
+	"deepinfra",
+	"io-intelligence",
+	"requesty",
+	"unbound",
+	"glama",
+] as const
+
+export type DynamicProvider = (typeof dynamicProviders)[number]
+
+export const isDynamicProvider = (key: string): key is DynamicProvider =>
+	dynamicProviders.includes(key as DynamicProvider)
+
+/**
+ * LocalProvider
+ *
+ * Local providers require localhost API calls in order to get the model list.
+ */
+
+export const localProviders = ["ollama", "lmstudio"] as const
+
+export type LocalProvider = (typeof localProviders)[number]
+
+export const isLocalProvider = (key: string): key is LocalProvider => localProviders.includes(key as LocalProvider)
+
+/**
+ * InternalProvider
+ *
+ * Internal providers require internal VSCode API calls in order to get the
+ * model list.
+ */
+
+export const internalProviders = ["vscode-lm"] as const
+
+export type InternalProvider = (typeof internalProviders)[number]
+
+export const isInternalProvider = (key: string): key is InternalProvider =>
+	internalProviders.includes(key as InternalProvider)
+
+/**
+ * CustomProvider
+ *
+ * Custom providers are completely configurable within Roo Code settings.
+ */
+
+export const customProviders = ["openai"] as const
+
+export type CustomProvider = (typeof customProviders)[number]
+
+export const isCustomProvider = (key: string): key is CustomProvider => customProviders.includes(key as CustomProvider)
+
+/**
+ * FauxProvider
+ *
+ * Faux providers do not make external inference calls and therefore do not have
+ * model lists.
+ */
+
+export const fauxProviders = ["fake-ai", "human-relay"] as const
+
+export type FauxProvider = (typeof fauxProviders)[number]
+
+export const isFauxProvider = (key: string): key is FauxProvider => fauxProviders.includes(key as FauxProvider)
+
+/**
  * ProviderName
  */
 
 export const providerNames = [
+	...dynamicProviders,
+	...localProviders,
+	...internalProviders,
+	...customProviders,
+	...fauxProviders,
 	"anthropic",
-	"claude-code",
-	"glama",
-	"openrouter",
 	"bedrock",
-	"vertex",
-	"openai",
-	"ollama",
-	"vscode-lm",
-	"lmstudio",
+	"cerebras",
+	"chutes",
+	"claude-code",
+	"doubao",
+	"deepseek",
+	"featherless",
+	"fireworks",
 	"gemini",
-	"openai-native",
+	"gemini-cli",
+	"groq",
 	"mistral",
 	"moonshot",
-	"deepseek",
-	"deepinfra",
-	"doubao",
+	"openai-native",
 	"qwen-code",
-	"unbound",
-	"requesty",
-	"human-relay",
-	"fake-ai",
-	"xai",
-	"groq",
-	"chutes",
-	"litellm",
+	"roo",
 	// kilocode_change start
 	"kilocode",
 	"gemini-cli",
 	"virtual-quota-fallback",
+	"synthetic",
 	// kilocode_change end
-	"huggingface",
-	"cerebras",
 	"sambanova",
+	"vertex",
+	"xai",
 	"zai",
-	"fireworks",
-	"featherless",
-	"io-intelligence",
-	"roo",
-	"vercel-ai-gateway",
 ] as const
 
 export const providerNamesSchema = z.enum(providerNames)
 
 export type ProviderName = z.infer<typeof providerNamesSchema>
+
+export const isProviderName = (key: unknown): key is ProviderName =>
+	typeof key === "string" && providerNames.includes(key as ProviderName)
 
 /**
  * ProviderSettingsEntry
@@ -94,11 +175,6 @@ export type ProviderSettingsEntry = z.infer<typeof providerSettingsEntrySchema>
 /**
  * ProviderSettings
  */
-
-/**
- * Default value for consecutive mistake limit
- */
-export const DEFAULT_CONSECUTIVE_MISTAKE_LIMIT = 3
 
 const baseProviderSettingsSchema = z.object({
 	includeMaxTokens: z.boolean().optional(),
@@ -128,7 +204,7 @@ const anthropicSchema = apiModelIdProviderModelSchema.extend({
 	apiKey: z.string().optional(),
 	anthropicBaseUrl: z.string().optional(),
 	anthropicUseAuthToken: z.boolean().optional(),
-	anthropicBeta1MContext: z.boolean().optional(), // Enable 'context-1m-2025-08-07' beta for 1M context window
+	anthropicBeta1MContext: z.boolean().optional(), // Enable 'context-1m-2025-08-07' beta for 1M context window.
 })
 
 const claudeCodeSchema = apiModelIdProviderModelSchema.extend({
@@ -155,6 +231,7 @@ const openRouterSchema = baseProviderSettingsSchema.extend({
 	// kilocode_change start
 	openRouterProviderDataCollection: openRouterProviderDataCollectionSchema.optional(),
 	openRouterProviderSort: openRouterProviderSortSchema.optional(),
+	openRouterZdr: z.boolean().optional(),
 	// kilocode_change end
 })
 
@@ -173,7 +250,7 @@ const bedrockSchema = apiModelIdProviderModelSchema.extend({
 	awsModelContextWindow: z.number().optional(),
 	awsBedrockEndpointEnabled: z.boolean().optional(),
 	awsBedrockEndpoint: z.string().optional(),
-	awsBedrock1MContext: z.boolean().optional(), // Enable 'context-1m-2025-08-07' beta for 1M context window
+	awsBedrock1MContext: z.boolean().optional(), // Enable 'context-1m-2025-08-07' beta for 1M context window.
 })
 
 const vertexSchema = apiModelIdProviderModelSchema.extend({
@@ -203,6 +280,7 @@ const ollamaSchema = baseProviderSettingsSchema.extend({
 	ollamaModelId: z.string().optional(),
 	ollamaBaseUrl: z.string().optional(),
 	ollamaApiKey: z.string().optional(),
+	ollamaNumCtx: z.number().int().min(128).optional(),
 })
 
 const vsCodeLmSchema = baseProviderSettingsSchema.extend({
@@ -325,6 +403,11 @@ const sambaNovaSchema = apiModelIdProviderModelSchema.extend({
 })
 
 // kilocode_change start
+const ovhcloudSchema = baseProviderSettingsSchema.extend({
+	ovhCloudAiEndpointsApiKey: z.string().optional(),
+	ovhCloudAiEndpointsModelId: z.string().optional(),
+})
+
 const kilocodeSchema = baseProviderSettingsSchema.extend({
 	kilocodeToken: z.string().optional(),
 	kilocodeOrganizationId: z.string().optional(),
@@ -332,6 +415,7 @@ const kilocodeSchema = baseProviderSettingsSchema.extend({
 	openRouterSpecificProvider: z.string().optional(),
 	openRouterProviderDataCollection: openRouterProviderDataCollectionSchema.optional(),
 	openRouterProviderSort: openRouterProviderSortSchema.optional(),
+	openRouterZdr: z.boolean().optional(),
 	kilocodeTesterWarningsDisabledUntil: z.number().optional(), // Timestamp for disabling KILOCODE-TESTER warnings
 })
 
@@ -353,20 +437,26 @@ export const virtualQuotaFallbackProfileDataSchema = z.object({
 const virtualQuotaFallbackSchema = baseProviderSettingsSchema.extend({
 	profiles: z.array(virtualQuotaFallbackProfileDataSchema).optional(),
 })
+// kilocode_change end
 
 export const zaiApiLineSchema = z.enum(["international_coding", "international", "china_coding", "china"])
 
 export type ZaiApiLine = z.infer<typeof zaiApiLineSchema>
-// kilocode_change end
 
 const zaiSchema = apiModelIdProviderModelSchema.extend({
 	zaiApiKey: z.string().optional(),
-	zaiApiLine: zaiApiLineSchema.optional(), // kilocode_change
+	zaiApiLine: zaiApiLineSchema.optional(),
 })
 
 const fireworksSchema = apiModelIdProviderModelSchema.extend({
 	fireworksApiKey: z.string().optional(),
 })
+
+// kilocode_change start
+const syntheticSchema = apiModelIdProviderModelSchema.extend({
+	syntheticApiKey: z.string().optional(),
+})
+// kilocode_change end
 
 const featherlessSchema = apiModelIdProviderModelSchema.extend({
 	featherlessApiKey: z.string().optional(),
@@ -382,7 +472,7 @@ const qwenCodeSchema = apiModelIdProviderModelSchema.extend({
 })
 
 const rooSchema = apiModelIdProviderModelSchema.extend({
-	// No additional fields needed - uses cloud authentication
+	// No additional fields needed - uses cloud authentication.
 })
 
 const vercelAiGatewaySchema = baseProviderSettingsSchema.extend({
@@ -407,6 +497,7 @@ export const providerSettingsSchemaDiscriminated = z.discriminatedUnion("apiProv
 	lmStudioSchema.merge(z.object({ apiProvider: z.literal("lmstudio") })),
 	geminiSchema.merge(z.object({ apiProvider: z.literal("gemini") })),
 	openAiNativeSchema.merge(z.object({ apiProvider: z.literal("openai-native") })),
+	ovhcloudSchema.merge(z.object({ apiProvider: z.literal("ovhcloud") })), // kilocode_change
 	mistralSchema.merge(z.object({ apiProvider: z.literal("mistral") })),
 	deepSeekSchema.merge(z.object({ apiProvider: z.literal("deepseek") })),
 	deepInfraSchema.merge(z.object({ apiProvider: z.literal("deepinfra") })),
@@ -421,6 +512,7 @@ export const providerSettingsSchemaDiscriminated = z.discriminatedUnion("apiProv
 	geminiCliSchema.merge(z.object({ apiProvider: z.literal("gemini-cli") })),
 	kilocodeSchema.merge(z.object({ apiProvider: z.literal("kilocode") })),
 	virtualQuotaFallbackSchema.merge(z.object({ apiProvider: z.literal("virtual-quota-fallback") })),
+	syntheticSchema.merge(z.object({ apiProvider: z.literal("synthetic") })),
 	// kilocode_change end
 	groqSchema.merge(z.object({ apiProvider: z.literal("groq") })),
 	huggingFaceSchema.merge(z.object({ apiProvider: z.literal("huggingface") })),
@@ -455,6 +547,7 @@ export const providerSettingsSchema = z.object({
 	...geminiCliSchema.shape,
 	...kilocodeSchema.shape,
 	...virtualQuotaFallbackSchema.shape,
+	...syntheticSchema.shape,
 	// kilocode_change end
 	...openAiNativeSchema.shape,
 	...mistralSchema.shape,
@@ -481,6 +574,7 @@ export const providerSettingsSchema = z.object({
 	...rooSchema.shape,
 	...vercelAiGatewaySchema.shape,
 	...codebaseIndexProviderSchema.shape,
+	...ovhcloudSchema.shape, // kilocode_change
 })
 
 export type ProviderSettings = z.infer<typeof providerSettingsSchema>
@@ -495,7 +589,11 @@ export type ProviderSettingsWithId = z.infer<typeof providerSettingsWithIdSchema
 
 export const PROVIDER_SETTINGS_KEYS = providerSettingsSchema.keyof().options
 
-export const MODEL_ID_KEYS: Partial<keyof ProviderSettings>[] = [
+/**
+ * ModelIdKey
+ */
+
+export const modelIdKeys = [
 	"apiModelId",
 	"glamaModelId",
 	"openRouterModelId",
@@ -510,12 +608,69 @@ export const MODEL_ID_KEYS: Partial<keyof ProviderSettings>[] = [
 	"ioIntelligenceModelId",
 	"vercelAiGatewayModelId",
 	"deepInfraModelId",
-]
+	"kilocodeModel",
+	"ovhCloudAiEndpointsModelId", // kilocode_change
+] as const satisfies readonly (keyof ProviderSettings)[]
+
+export type ModelIdKey = (typeof modelIdKeys)[number]
 
 export const getModelId = (settings: ProviderSettings): string | undefined => {
-	const modelIdKey = MODEL_ID_KEYS.find((key) => settings[key])
-	return modelIdKey ? (settings[modelIdKey] as string) : undefined
+	const modelIdKey = modelIdKeys.find((key) => settings[key])
+	return modelIdKey ? settings[modelIdKey] : undefined
 }
+
+/**
+ * TypicalProvider
+ */
+
+export type TypicalProvider = Exclude<ProviderName, InternalProvider | CustomProvider | FauxProvider>
+
+export const isTypicalProvider = (key: unknown): key is TypicalProvider =>
+	isProviderName(key) && !isInternalProvider(key) && !isCustomProvider(key) && !isFauxProvider(key)
+
+export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
+	anthropic: "apiModelId",
+	"claude-code": "apiModelId",
+	glama: "glamaModelId",
+	openrouter: "openRouterModelId",
+	"kilocode-openrouter": "openRouterModelId",
+	bedrock: "apiModelId",
+	vertex: "apiModelId",
+	"openai-native": "openAiModelId",
+	ollama: "ollamaModelId",
+	lmstudio: "lmStudioModelId",
+	gemini: "apiModelId",
+	"gemini-cli": "apiModelId",
+	mistral: "apiModelId",
+	moonshot: "apiModelId",
+	deepseek: "apiModelId",
+	deepinfra: "deepInfraModelId",
+	doubao: "apiModelId",
+	"qwen-code": "apiModelId",
+	unbound: "unboundModelId",
+	requesty: "requestyModelId",
+	xai: "apiModelId",
+	groq: "apiModelId",
+	chutes: "apiModelId",
+	litellm: "litellmModelId",
+	huggingface: "huggingFaceModelId",
+	cerebras: "apiModelId",
+	sambanova: "apiModelId",
+	zai: "apiModelId",
+	fireworks: "apiModelId",
+	synthetic: "apiModelId", // kilocode_change
+	featherless: "apiModelId",
+	"io-intelligence": "ioIntelligenceModelId",
+	roo: "apiModelId",
+	"vercel-ai-gateway": "vercelAiGatewayModelId",
+	kilocode: "kilocodeModel",
+	"virtual-quota-fallback": "apiModelId",
+	ovhcloud: "ovhCloudAiEndpointsModelId", // kilocode_change
+}
+
+/**
+ * ANTHROPIC_STYLE_PROVIDERS
+ */
 
 // Providers that use Anthropic-style API protocol.
 export const ANTHROPIC_STYLE_PROVIDERS: ProviderName[] = ["anthropic", "claude-code", "bedrock"]
@@ -536,6 +691,10 @@ export const getApiProtocol = (provider: ProviderName | undefined, modelId?: str
 
 	return "openai"
 }
+
+/**
+ * MODELS_BY_PROVIDER
+ */
 
 export const MODELS_BY_PROVIDER: Record<
 	Exclude<ProviderName, "fake-ai" | "human-relay" | "gemini-cli" | "lmstudio" | "openai" | "ollama">,
@@ -578,6 +737,13 @@ export const MODELS_BY_PROVIDER: Record<
 		label: "Fireworks",
 		models: Object.keys(fireworksModels),
 	},
+	// kilocode_change start
+	synthetic: {
+		id: "synthetic",
+		label: "Synthetic",
+		models: Object.keys(syntheticModels),
+	},
+	// kilocode_change end
 	gemini: {
 		id: "gemini",
 		label: "Google Gemini",
@@ -631,31 +797,13 @@ export const MODELS_BY_PROVIDER: Record<
 	openrouter: { id: "openrouter", label: "OpenRouter", models: [] },
 	requesty: { id: "requesty", label: "Requesty", models: [] },
 	unbound: { id: "unbound", label: "Unbound", models: [] },
+	ovhcloud: { id: "ovhcloud", label: "OVHcloud AI Endpoints", models: [] }, // kilocode_change
 
 	// kilocode_change start
 	kilocode: { id: "kilocode", label: "Kilocode", models: [] },
+	"kilocode-openrouter": { id: "kilocode-openrouter", label: "Kilocode", models: [] }, // temporarily needed to satisfy because we're using 2 inconsistent names apparently
 	"virtual-quota-fallback": { id: "virtual-quota-fallback", label: "Virtual Quota Fallback", models: [] },
 	// kilocode_change end
 	deepinfra: { id: "deepinfra", label: "DeepInfra", models: [] },
 	"vercel-ai-gateway": { id: "vercel-ai-gateway", label: "Vercel AI Gateway", models: [] },
 }
-
-export const dynamicProviders = [
-	"glama",
-	"huggingface",
-	"litellm",
-	"openrouter",
-	"requesty",
-	"unbound",
-	// kilocode_change start
-	"kilocode",
-	"virtual-quota-fallback",
-	// kilocode_change end
-	"deepinfra",
-	"vercel-ai-gateway",
-] as const satisfies readonly ProviderName[]
-
-export type DynamicProvider = (typeof dynamicProviders)[number]
-
-export const isDynamicProvider = (key: string): key is DynamicProvider =>
-	dynamicProviders.includes(key as DynamicProvider)

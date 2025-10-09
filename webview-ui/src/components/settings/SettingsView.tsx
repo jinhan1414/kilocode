@@ -26,6 +26,8 @@ import {
 	MessageSquare,
 	Monitor,
 	LucideIcon,
+	// SquareSlash, // kilocode_change
+	// Glasses, // kilocode_change
 } from "lucide-react"
 
 // kilocode_change
@@ -74,6 +76,8 @@ import PromptsSettings from "./PromptsSettings"
 import McpView from "../kilocodeMcp/McpView" // kilocode_change
 import deepEqual from "fast-deep-equal" // kilocode_change
 import { GhostServiceSettingsView } from "../kilocode/settings/GhostServiceSettings" // kilocode_change
+import { SlashCommandsSettings } from "./SlashCommandsSettings"
+import { UISettings } from "./UISettings"
 
 export const settingsTabsContainer = "flex flex-1 overflow-hidden [&.narrow_.tab-label]:hidden"
 export const settingsTabList =
@@ -88,6 +92,7 @@ export interface SettingsViewRef {
 const sectionNames = [
 	"providers",
 	"autoApprove",
+	"slashCommands",
 	"browser",
 	"checkpoints",
 	"ghost", // kilocode_change
@@ -96,6 +101,7 @@ const sectionNames = [
 	"contextManagement",
 	"terminal",
 	"prompts",
+	"ui",
 	"experimental",
 	"language",
 	"mcp",
@@ -175,6 +181,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		diffEnabled,
 		experiments,
 		morphApiKey, // kilocode_change
+		fastApplyModel, // kilocode_change: Fast Apply model selection
 		fuzzyMatchThreshold,
 		maxOpenTabsContext,
 		maxWorkspaceFiles,
@@ -203,6 +210,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		maxReadFileLine,
 		showAutoApproveMenu, // kilocode_change
 		showTaskTimeline, // kilocode_change
+		hideCostBelowThreshold, // kilocode_change
 		maxImageFileSize,
 		maxTotalImageSize,
 		terminalCompressProgressBar,
@@ -224,6 +232,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		openRouterImageApiKey,
 		kiloCodeImageApiKey,
 		openRouterImageGenerationSelectedModel,
+		reasoningBlockCollapsed,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -431,6 +440,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "alwaysAllowModeSwitch", bool: alwaysAllowModeSwitch })
 			vscode.postMessage({ type: "alwaysAllowSubtasks", bool: alwaysAllowSubtasks })
 			vscode.postMessage({ type: "showTaskTimeline", bool: showTaskTimeline }) // kilocode_change
+			vscode.postMessage({ type: "hideCostBelowThreshold", value: hideCostBelowThreshold }) // kilocode_change
 			vscode.postMessage({ type: "alwaysAllowFollowupQuestions", bool: alwaysAllowFollowupQuestions })
 			vscode.postMessage({ type: "alwaysAllowUpdateTodoList", bool: alwaysAllowUpdateTodoList })
 			vscode.postMessage({ type: "followupAutoApproveTimeoutMs", value: followupAutoApproveTimeoutMs })
@@ -438,12 +448,14 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "updateCondensingPrompt", text: customCondensingPrompt || "" })
 			vscode.postMessage({ type: "updateSupportPrompt", values: customSupportPrompts || {} })
 			vscode.postMessage({ type: "includeTaskHistoryInEnhance", bool: includeTaskHistoryInEnhance ?? true })
+			vscode.postMessage({ type: "setReasoningBlockCollapsed", bool: reasoningBlockCollapsed ?? true })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
 			vscode.postMessage({ type: "profileThresholds", values: profileThresholds })
 			vscode.postMessage({ type: "systemNotificationsEnabled", bool: systemNotificationsEnabled }) // kilocode_change
 			vscode.postMessage({ type: "ghostServiceSettings", values: ghostServiceSettings }) // kilocode_change
 			vscode.postMessage({ type: "morphApiKey", text: morphApiKey }) // kilocode_change
+			vscode.postMessage({ type: "fastApplyModel", text: fastApplyModel }) // kilocode_change: Fast Apply model selection
 			vscode.postMessage({ type: "openRouterImageApiKey", text: openRouterImageApiKey })
 			vscode.postMessage({ type: "kiloCodeImageApiKey", text: kiloCodeImageApiKey })
 			vscode.postMessage({
@@ -551,6 +563,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		() => [
 			{ id: "providers", icon: Webhook },
 			{ id: "autoApprove", icon: CheckCheck },
+			// { id: "slashCommands", icon: SquareSlash }, // kilocode_change: needs work to be re-introduced
 			{ id: "browser", icon: SquareMousePointer },
 			{ id: "checkpoints", icon: GitBranch },
 			{ id: "display", icon: Monitor }, // kilocode_change
@@ -559,6 +572,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			{ id: "contextManagement", icon: Database },
 			{ id: "terminal", icon: SquareTerminal },
 			{ id: "prompts", icon: MessageSquare },
+			// { id: "ui", icon: Glasses }, // kilocode_change: we have our own display section
 			{ id: "experimental", icon: FlaskConical },
 			{ id: "language", icon: Globe },
 			{ id: "mcp", icon: Server },
@@ -787,6 +801,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						/>
 					)}
 
+					{/* Slash Commands Section */}
+					{activeTab === "slashCommands" && <SlashCommandsSettings />}
+
 					{/* Browser Section */}
 					{activeTab === "browser" && (
 						<BrowserSettings
@@ -810,8 +827,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{/* kilocode_change start display section */}
 					{activeTab === "display" && (
 						<DisplaySettings
+							reasoningBlockCollapsed={reasoningBlockCollapsed ?? true}
 							showTaskTimeline={showTaskTimeline}
 							ghostServiceSettings={ghostServiceSettings}
+							hideCostBelowThreshold={hideCostBelowThreshold}
 							setCachedStateField={setCachedStateField}
 						/>
 					)}
@@ -889,6 +908,14 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						/>
 					)}
 
+					{/* UI Section */}
+					{activeTab === "ui" && (
+						<UISettings
+							reasoningBlockCollapsed={reasoningBlockCollapsed ?? true}
+							setCachedStateField={setCachedStateField}
+						/>
+					)}
+
 					{/* Experimental Section */}
 					{activeTab === "experimental" && (
 						<ExperimentalSettings
@@ -897,6 +924,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							// kilocode_change start
 							setCachedStateField={setCachedStateField}
 							morphApiKey={morphApiKey}
+							fastApplyModel={fastApplyModel}
 							// kilocode_change end
 							apiConfiguration={apiConfiguration}
 							setApiConfigurationField={setApiConfigurationField}

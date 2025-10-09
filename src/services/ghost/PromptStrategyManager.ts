@@ -1,10 +1,8 @@
 import { GhostSuggestionContext } from "./types"
 import { PromptStrategy } from "./types/PromptStrategy"
-import { ContextAnalyzer } from "./ContextAnalyzer"
 
 // Import all strategies
 import { UserRequestStrategy } from "./strategies/UserRequestStrategy"
-import { ErrorFixStrategy } from "./strategies/ErrorFixStrategy"
 import { SelectionRefactorStrategy } from "./strategies/SelectionRefactorStrategy"
 import { CommentDrivenStrategy } from "./strategies/CommentDrivenStrategy"
 import { NewLineCompletionStrategy } from "./strategies/NewLineCompletionStrategy"
@@ -16,12 +14,11 @@ import { AutoTriggerStrategy } from "./strategies/AutoTriggerStrategy"
  */
 export class PromptStrategyManager {
 	private strategies: PromptStrategy[]
-	private contextAnalyzer: ContextAnalyzer
+	private autoTriggerStrategy: AutoTriggerStrategy
 	private debug: boolean
 
 	constructor(options?: { debug: boolean }) {
 		this.debug = options?.debug ?? false
-		this.contextAnalyzer = new ContextAnalyzer()
 
 		// Register all strategies in priority order
 		this.strategies = [
@@ -30,10 +27,8 @@ export class PromptStrategyManager {
 			new NewLineCompletionStrategy(),
 			new CommentDrivenStrategy(),
 			new InlineCompletionStrategy(),
-			new AutoTriggerStrategy(),
-			new ErrorFixStrategy(), // This need to be implemented in background
-			//new ASTAwareStrategy(),
 		]
+		this.autoTriggerStrategy = new AutoTriggerStrategy()
 	}
 
 	/**
@@ -42,39 +37,13 @@ export class PromptStrategyManager {
 	 * @returns The selected strategy
 	 */
 	selectStrategy(context: GhostSuggestionContext): PromptStrategy {
-		// Analyze context to understand the situation
-		const analysis = this.contextAnalyzer.analyze(context)
+		const strategy = this.strategies.find((s) => s.canHandle(context)) ?? this.autoTriggerStrategy
 
 		if (this.debug) {
-			console.log("[PromptStrategyManager] Context analysis:", {
-				useCase: analysis.useCase,
-				hasUserInput: analysis.hasUserInput,
-				hasErrors: analysis.hasErrors,
-				hasSelection: analysis.hasSelection,
-				isNewLine: analysis.isNewLine,
-				isInComment: analysis.isInComment,
-				isInlineEdit: analysis.isInlineEdit,
-			})
+			console.log(`[PromptStrategyManager] Selected strategy: ${strategy.name}`)
 		}
 
-		// Find the first strategy that can handle this context
-		for (const strategy of this.strategies) {
-			if (strategy.canHandle(context)) {
-				if (this.debug) {
-					console.log(
-						`[PromptStrategyManager] Selected strategy: ${strategy.name} for use case: ${analysis.useCase}`,
-					)
-				}
-				return strategy
-			}
-		}
-
-		// Fallback: return the last strategy (AutoTriggerStrategy)
-		const fallback = this.strategies[this.strategies.length - 1]
-		if (this.debug) {
-			console.log(`[PromptStrategyManager] Falling back to: ${fallback.name}`)
-		}
-		return fallback
+		return strategy
 	}
 
 	/**
@@ -106,13 +75,5 @@ export class PromptStrategyManager {
 			userPrompt,
 			strategy,
 		}
-	}
-
-	/**
-	 * Gets all registered strategies (for testing/debugging)
-	 * @returns Array of all strategies
-	 */
-	getStrategies(): PromptStrategy[] {
-		return [...this.strategies]
 	}
 }

@@ -1,8 +1,9 @@
-import * as vscode from "vscode"
+import type { TextDocument, Range } from "vscode"
 import { GhostSuggestionContext } from "../types"
 import { UseCaseType } from "../types/PromptStrategy"
 import { BasePromptStrategy } from "./BasePromptStrategy"
 import { CURSOR_MARKER } from "../ghostConstants"
+import { formatDocumentWithCursor } from "./StrategyHelpers"
 
 /**
  * Strategy for proactive code completion on new/empty lines
@@ -23,27 +24,12 @@ export class NewLineCompletionStrategy extends BasePromptStrategy {
 	}
 
 	/**
-	 * Focus on surrounding code and recent actions
-	 * Exclude diagnostics and user input
-	 */
-	getRelevantContext(context: GhostSuggestionContext): Partial<GhostSuggestionContext> {
-		return {
-			document: context.document,
-			range: context.range,
-			rangeASTNode: context.rangeASTNode,
-			recentOperations: context.recentOperations,
-			// Exclude:
-			// - userInput (no explicit request)
-			// - diagnostics (not relevant for new line)
-			// - openFiles (reduces tokens)
-		}
-	}
-
-	/**
 	 * System instructions for new line completion
 	 */
-	protected getSpecificSystemInstructions(): string {
-		return `Task: Proactive Code Completion for New Lines
+	getSystemInstructions(): string {
+		return (
+			this.getBaseSystemInstructions() +
+			`Task: Proactive Code Completion for New Lines
 The user has created a new line. Suggest the most logical next code based on context.
 
 Completion Guidelines:
@@ -76,12 +62,13 @@ Important:
 - Respect existing code patterns and comments
 - Maintain consistent style
 - Consider the most likely next step`
+		)
 	}
 
 	/**
 	 * Build prompt focused on surrounding context
 	 */
-	protected buildUserPrompt(context: Partial<GhostSuggestionContext>): string {
+	getUserPrompt(context: GhostSuggestionContext): string {
 		let prompt = ""
 
 		// Start with cursor context
@@ -97,16 +84,10 @@ Important:
 			prompt += "\n"
 		}
 
-		// Add AST context if available
-		if (context.rangeASTNode) {
-			prompt += this.formatASTContext(context.rangeASTNode)
-			prompt += "\n"
-		}
-
 		// Add the full document with cursor marker
 		if (context.document) {
 			prompt += "## Full Code\n"
-			prompt += this.formatDocumentWithCursor(context.document, context.range)
+			prompt += formatDocumentWithCursor(context.document, context.range)
 			prompt += "\n\n"
 		}
 
@@ -201,7 +182,7 @@ Important:
 	/**
 	 * Get contextual hints based on surrounding code
 	 */
-	private getContextualHints(document: vscode.TextDocument, range: vscode.Range): string {
+	private getContextualHints(document: TextDocument, range: Range): string {
 		const lineNum = range.start.line
 		let hints = "### Hints:\n"
 
@@ -249,7 +230,7 @@ Important:
 	/**
 	 * Get the indentation level of a line
 	 */
-	private getIndentationLevel(document: vscode.TextDocument, lineNum: number): number {
+	private getIndentationLevel(document: TextDocument, lineNum: number): number {
 		if (lineNum >= document.lineCount) return 0
 
 		const line = document.lineAt(lineNum).text
@@ -260,7 +241,7 @@ Important:
 	/**
 	 * Check if we're near the end of a function
 	 */
-	private isNearFunctionEnd(document: vscode.TextDocument, lineNum: number): boolean {
+	private isNearFunctionEnd(document: TextDocument, lineNum: number): boolean {
 		// Simple heuristic: check if there's a closing brace within 3 lines
 		for (let i = lineNum + 1; i < Math.min(lineNum + 4, document.lineCount); i++) {
 			const line = document.lineAt(i).text
@@ -276,5 +257,72 @@ Important:
 			}
 		}
 		return false
+	}
+
+	/**
+	 * Formats recent operations for inclusion in prompts
+	 */
+	private formatRecentOperations(operations: any[]): string {
+		if (!operations || operations.length === 0) return ""
+
+		let result = "## Recent Actions\n"
+		operations.slice(0, 5).forEach((op, index) => {
+			result += `${index + 1}. ${op.description}\n`
+			if (op.content) {
+				result += `   \`\`\`\n   ${op.content}\n   \`\`\`\n`
+			}
+		})
+
+		return result
+	}
+
+	/**
+	 * Helper to check if a line appears to be incomplete
+	 */
+	private isIncompleteStatement(line: string): boolean {
+		const trimmed = line.trim()
+
+		// Check for common incomplete patterns
+		const incompletePatterns = [
+			/^(if|else if|while|for|switch|try|catch)\s*\(.*\)\s*$/, // Control structures without body
+			/^(function|class|interface|type|enum)\s+\w+.*[^{]$/, // Declarations without body
+			/[,\+\-\*\/\=\|\&]\s*$/, // Operators at end
+			/^(const|let|var)\s+\w+\s*=\s*$/, // Variable declaration without value
+			/\.\s*$/, // Property access incomplete
+			/\(\s*$/, // Opening parenthesis
+			/^\s*\.\w*$/, // Method chaining incomplete
+		]
+
+		return incompletePatterns.some((pattern) => pattern.test(trimmed))
+	}
+
+	/**
+	 * Gets surrounding code context (lines before and after cursor)
+	 */
+	private getSurroundingCode(
+		document: TextDocument,
+		range: Range,
+		linesBefore: number = 10,
+		linesAfter: number = 10,
+	): { before: string; after: string; currentLine: string } {
+		const currentLineNum = range.start.line
+		const startLine = Math.max(0, currentLineNum - linesBefore)
+		const endLine = Math.min(document.lineCount - 1, currentLineNum + linesAfter)
+
+		let before = ""
+		let after = ""
+		const currentLine = document.lineAt(currentLineNum).text
+
+		// Get lines before cursor
+		for (let i = startLine; i < currentLineNum; i++) {
+			before += document.lineAt(i).text + "\n"
+		}
+
+		// Get lines after cursor
+		for (let i = currentLineNum + 1; i <= endLine; i++) {
+			after += document.lineAt(i).text + "\n"
+		}
+
+		return { before, after, currentLine }
 	}
 }

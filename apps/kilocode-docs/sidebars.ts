@@ -57,6 +57,7 @@ const sidebars: SidebarsConfig = {
 								"providers/claude-code",
 								"providers/deepseek",
 								"providers/fireworks",
+								"providers/synthetic", // kilocode_change
 								"providers/vertex",
 								"providers/glama",
 								"providers/gemini",
@@ -68,6 +69,7 @@ const sidebars: SidebarsConfig = {
 								"providers/openai",
 								"providers/openai-compatible",
 								"providers/openrouter",
+								"providers/ovhcloud", // kilocode_change
 								"providers/requesty",
 								"providers/unbound",
 								"providers/v0",

@@ -2,6 +2,7 @@ import { GhostSuggestionContext } from "../types"
 import { BasePromptStrategy } from "./BasePromptStrategy"
 import { UseCaseType } from "../types/PromptStrategy"
 import { CURSOR_MARKER } from "../ghostConstants"
+import { formatDocumentWithCursor } from "./StrategyHelpers"
 
 /**
  * Strategy for generating code based on comments
@@ -30,18 +31,10 @@ export class CommentDrivenStrategy extends BasePromptStrategy {
 		return isComment && !context.userInput // User input takes precedence
 	}
 
-	getRelevantContext(context: GhostSuggestionContext): Partial<GhostSuggestionContext> {
-		return {
-			document: context.document,
-			range: context.range,
-			documentAST: context.documentAST,
-			rangeASTNode: context.rangeASTNode,
-			recentOperations: context.recentOperations,
-		}
-	}
-
-	protected getSpecificSystemInstructions(): string {
-		return `You are an expert code generation assistant that implements code based on comments.
+	getSystemInstructions(): string {
+		return (
+			this.getBaseSystemInstructions() +
+			`You are an expert code generation assistant that implements code based on comments.
 
 ## Core Responsibilities:
 1. Read and understand the comment's intent
@@ -73,9 +66,10 @@ export class CommentDrivenStrategy extends BasePromptStrategy {
 - Do not add explanatory comments unless necessary for complex logic
 - Ensure the code is production-ready
 - When using search/replace format, include ALL existing code to preserve it`
+		)
 	}
 
-	protected buildUserPrompt(context: Partial<GhostSuggestionContext>): string {
+	getUserPrompt(context: GhostSuggestionContext): string {
 		if (!context.document || !context.range) {
 			return "No context available for comment-driven generation."
 		}
@@ -92,15 +86,10 @@ export class CommentDrivenStrategy extends BasePromptStrategy {
 		prompt += `- Language: ${language}\n`
 		prompt += `- Comment to Implement:\n\`\`\`\n${comment}\n\`\`\`\n\n`
 
-		if (context.rangeASTNode) {
-			prompt += this.formatASTContext(context.rangeASTNode)
-			prompt += "\n"
-		}
-
 		// Add the full document with cursor marker
 		if (context.document) {
 			prompt += "## Full Code\n"
-			prompt += this.formatDocumentWithCursor(context.document, context.range)
+			prompt += formatDocumentWithCursor(context.document, context.range)
 			prompt += "\n\n"
 		}
 

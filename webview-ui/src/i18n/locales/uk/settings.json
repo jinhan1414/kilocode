@@ -29,11 +29,22 @@
 		"notifications": "Сповіщення",
 		"contextManagement": "Контекст",
 		"terminal": "Термінал",
+		"slashCommands": "Slash Команди",
 		"prompts": "Prompts",
+		"ui": "Інтерфейс",
 		"experimental": "Експериментальне",
 		"language": "Мова",
 		"about": "Про Kilo Code",
 		"ghost": "Ghost"
+	},
+	"slashCommands": {
+		"description": "Керуйте своїми slash командами для швидкого виконання власних робочих процесів та дій. <DocsLink>Дізнатися більше</DocsLink>"
+	},
+	"ui": {
+		"collapseThinking": {
+			"label": "Згортати повідомлення Thinking за замовчуванням",
+			"description": "Коли увімкнено, блоки thinking будуть згорнуті за замовчуванням, поки ви не взаємодієте з ними"
+		}
 	},
 	"prompts": {
 		"description": "Налаштуйте допоміжні підказки, які використовуються для швидких дій, таких як покращення підказок, пояснення коду та виправлення проблем. Ці підказки допомагають Kilo Code надавати кращу допомогу для типових завдань розробки."
@@ -135,10 +146,13 @@
 			"baseUrlRequired": "Базовий URL є обов'язковим",
 			"modelDimensionMinValue": "Розмірність моделі повинна бути більше 0",
 			"vercelAiGatewayApiKeyRequired": "Ключ API Vercel AI Gateway є обов'язковим"
-		}
+		},
+		"cancelling": "Скасування...",
+		"cancelIndexingButton": "Скасувати індексацію"
 	},
 	"autoApprove": {
 		"description": "Дозволити Kilo Code автоматично виконувати операції без необхідності затвердження. Вмикайте ці налаштування, лише якщо ви повністю довіряєте ШІ та розумієте пов'язані з цим ризики безпеки.",
+		"toggleShortcut": "Ви можете налаштувати гарячу клавішу для цього налаштування <SettingsLink>у настройках вашого IDE</SettingsLink>.",
 		"enabled": "Автоматичне затвердження увімкнено",
 		"readOnly": {
 			"label": "Читати",
@@ -293,6 +307,8 @@
 		"getFeatherlessApiKey": "Отримати ключ API Featherless",
 		"fireworksApiKey": "Ключ API Fireworks",
 		"getFireworksApiKey": "Отримати ключ API Fireworks",
+		"syntheticApiKey": "Ключ API Synthetic",
+		"getSyntheticApiKey": "Отримати ключ API Synthetic",
 		"moonshotApiKey": "Ключ API Moonshot",
 		"getMoonshotApiKey": "Отримати ключ API Moonshot",
 		"moonshotBaseUrl": "Точка входу Moonshot",
@@ -309,6 +325,8 @@
 		"openAiApiKey": "Ключ API OpenAI",
 		"getHuggingFaceApiKey": "Отримати ключ API Hugging Face",
 		"huggingFaceApiKey": "Ключ API Hugging Face",
+		"getOvhCloudAiEndpointsApiKey": "Отримати ключ API OVHCloud AI Endpoints",
+		"ovhCloudAiEndpointsApiKey": "Ключ API OVHCloud AI Endpoints",
 		"huggingFaceModelId": "ID моделі",
 		"huggingFaceLoading": "Завантаження...",
 		"huggingFaceModelsCount": "({{count}} моделей)",
@@ -384,6 +402,9 @@
 			"baseUrl": "Базовий URL (необов'язково)",
 			"modelId": "Ідентифікатор моделі",
 			"apiKey": "Ключ API",
+			"apiKeyHelp": "Додатковий API ключ для автентифікованих екземплярів Ollama або хмарних сервісів. Залиш порожнім для локальних установок.",
+			"numCtx": "Розмір контекстного вікна (num_ctx)",
+			"numCtxHelp": "Перевизначити розмір контекстного вікна моделі за замовчуванням. Залиш порожнім для використання конфігурації Modelfile. Мінімальне значення 128.",
 			"apiKeyPlaceholder": "Введіть ваш ключ API",
 			"apiKeyInfo": "Ключ API буде надісланий як заголовок Authorization",
 			"description": "Ollama дозволяє запускати моделі локально на вашому комп'ютері. Інструкції щодо початку роботи див. у їхньому посібнику зі швидкого старту.",
@@ -580,6 +601,11 @@
 		"taskTimeline": {
 			"label": "Показувати хронологію завдань",
 			"description": "Відображати візуальну хронологію повідомлень завдання, розфарбовану за типом, що дозволяє швидко переглядати хід виконання завдання та повертатися до певних моментів у історії завдання."
+		},
+		"costThreshold": {
+			"label": "Сховати вартість нижче порогового значення",
+			"currentValue": "Поточний поріг: ${{value}}",
+			"description": "Показувати лише витрати на запити, що перевищують цю суму. Витрати завжди видно, коли відкрита панель деталей."
 		}
 	},
 	"notifications": {
@@ -800,12 +826,6 @@
 			"name": "Увімкнути одночасне редагування файлів",
 			"description": "Якщо ввімкнено, Kilo Code може редагувати кілька файлів за один запит. Якщо вимкнено, Kilo Code повинен редагувати файли по одному. Вимкнення цього може допомогти при роботі з менш здатними моделями або коли ти хочеш більше контролю над модифікаціями файлів."
 		},
-		"MORPH_FAST_APPLY": {
-			"name": "Увімкнути Morph Fast Apply",
-			"description": "Якщо ввімкнено, Kilo Code може редагувати файли за допомогою Morph Fast Apply. Потребує провайдера API Kilo Code, OpenRouter або ключа API Morph.",
-			"apiKey": "Ключ API Morph (необов'язково)",
-			"placeholder": "Введіть ваш ключ API Morph (необов'язково)"
-		},
 		"PREVENT_FOCUS_DISRUPTION": {
 			"name": "Редагування у фоновому режимі",
 			"description": "Запобігає порушенню фокусу редактора, коли увімкнено. Редагування файлів відбувається у фоновому режимі без відкриття diff-перегляду або крадіжки фокусу. Ви можете продовжувати працювати без переривань, поки Kilo Code вносить зміни. Файли можуть відкриватися без фокусу для захоплення діагностики або залишатися повністю закритими."
@@ -836,6 +856,20 @@
 		"RUN_SLASH_COMMAND": {
 			"name": "Увімкнути slash команди, ініційовані моделлю",
 			"description": "Коли увімкнено, Kilo Code може запускати ваші slash команди для виконання робочих процесів."
+		},
+		"MORPH_FAST_APPLY": {
+			"name": "Увімкнути швидке застосування",
+			"description": "Коли увімкнено, Kilo Code може редагувати файли за допомогою швидкого застосування зі спеціалізованими моделями, оптимізованими для модифікацій коду. Потребує провайдера Kilo Code API, OpenRouter або ключа API Morph.",
+			"apiKey": "Ключ API Morph (необов'язково)",
+			"placeholder": "Введіть ваш ключ API Morph (необов'язково)",
+			"modelLabel": "Вибір моделі",
+			"modelDescription": "Виберіть, яку модель швидкого застосування використовувати для редагування файлів",
+			"models": {
+				"auto": "Автоматично (За замовчуванням - вибирає найкращу доступну)",
+				"morphFast": "Morph v3 Fast (Швидше, нижча вартість)",
+				"morphLarge": "Morph v3 Large (Більш здатна)",
+				"relace": "Relace Apply v3"
+			}
 		},
 		"INLINE_ASSIST": {
 			"name": "Autocomplete",
