@@ -64,15 +64,15 @@ export async function codebaseSearchTool(
 
 	// --- Core Logic ---
 	try {
-		const context = cline.providerRef.deref()?.context
-		if (!context) {
-			throw new Error("Extension context is not available.")
+		const provider = cline.providerRef.deref()
+		if (!provider) {
+			throw new Error("Provider is not available.")
 		}
 
-		const manager = CodeIndexManager.getInstance(context)
+		const manager = provider.getCurrentWorkspaceCodeIndexManager()
 
 		if (!manager) {
-			throw new Error("CodeIndexManager is not available.")
+			throw new Error("CodeIndexManager is not available for the current workspace.")
 		}
 
 		if (!manager.isFeatureEnabled) {

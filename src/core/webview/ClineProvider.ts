@@ -317,7 +317,15 @@ export class ClineProvider
 				name: folder.name,
 				path: folder.uri.fsPath,
 			}))
-			this.activeWorkspacePath = workspaceFolders[0].uri.fsPath
+
+			// kilocode_change: In a multi-root workspace, default to the .code-workspace file's parent
+			// directory as the initial active path to avoid incorrect indexing merges.
+			if (workspaceFolders.length > 1 && vscode.workspace.workspaceFile) {
+				this.activeWorkspacePath = path.dirname(vscode.workspace.workspaceFile.fsPath)
+			} else {
+				this.activeWorkspacePath = workspaceFolders[0].uri.fsPath
+			}
+
 			this.cwd = this.activeWorkspacePath
 			setActiveWorkspacePath(this.cwd)
 		} else {
@@ -326,6 +334,8 @@ export class ClineProvider
 			this.cwd = ""
 			setActiveWorkspacePath(undefined)
 		}
+		// kilocode_change: ensure index subscription is updated on workspace folder changes
+		this.updateCodeIndexStatusSubscription()
 	}
 
 	public setActiveWorkspacePath(path: string) {
@@ -333,6 +343,8 @@ export class ClineProvider
 		this.cwd = path
 		setActiveWorkspacePath(this.cwd)
 		this.postStateToWebview()
+		// kilocode_change: ensure index subscription is updated on active workspace change
+		this.updateCodeIndexStatusSubscription()
 	}
 	/**
 	 * Override EventEmitter's on method to match TaskProviderLike interface
@@ -2564,7 +2576,11 @@ export class ClineProvider
 	 * @returns CodeIndexManager instance for the current workspace or the default one
 	 */
 	public getCurrentWorkspaceCodeIndexManager(): CodeIndexManager | undefined {
-		return CodeIndexManager.getInstance(this.context)
+		// If there is no active workspace path, we should not return any manager.
+		if (!this.activeWorkspacePath) {
+			return undefined
+		}
+		return CodeIndexManager.getInstance(this.context, this.activeWorkspacePath)
 	}
 
 	/**
