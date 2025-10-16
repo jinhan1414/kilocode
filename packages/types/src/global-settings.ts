@@ -96,6 +96,7 @@ export const globalSettingsSchema = z.object({
 	browserViewportSize: z.string().optional(),
 	showAutoApproveMenu: z.boolean().optional(), // kilocode_change
 	showTaskTimeline: z.boolean().optional(), // kilocode_change
+	showTimestamps: z.boolean().optional(), // kilocode_change
 	hideCostBelowThreshold: z.number().min(0).optional(), // kilocode_change
 	localWorkflowToggles: z.record(z.string(), z.boolean()).optional(), // kilocode_change
 	globalWorkflowToggles: z.record(z.string(), z.boolean()).optional(), // kilocode_change
@@ -166,6 +167,7 @@ export const globalSettingsSchema = z.object({
 	commitMessageApiConfigId: z.string().optional(), // kilocode_change
 	terminalCommandApiConfigId: z.string().optional(), // kilocode_change
 	ghostServiceSettings: ghostServiceSettingsSchema, // kilocode_change
+	hasPerformedOrganizationAutoSwitch: z.boolean().optional(), // kilocode_change
 	includeTaskHistoryInEnhance: z.boolean().optional(),
 	historyPreviewCollapsed: z.boolean().optional(),
 	reasoningBlockCollapsed: z.boolean().optional(),

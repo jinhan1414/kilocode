@@ -2348,6 +2348,22 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// Note: updateApiReqMsg() is now called from within drainStreamInBackgroundToFindAllUsage
 				// to ensure usage data is captured even when the stream is interrupted. The background task
 				// uses local variables to accumulate usage data before atomically updating the shared state.
+
+				// Complete the reasoning message if it exists
+				// We can't use say() here because the reasoning message may not be the last message
+				// (other messages like text blocks or tool uses may have been added after it during streaming)
+				if (reasoningMessage) {
+					const lastReasoningIndex = findLastIndex(
+						this.clineMessages,
+						(m) => m.type === "say" && m.say === "reasoning",
+					)
+
+					if (lastReasoningIndex !== -1 && this.clineMessages[lastReasoningIndex].partial) {
+						this.clineMessages[lastReasoningIndex].partial = false
+						await this.updateClineMessage(this.clineMessages[lastReasoningIndex])
+					}
+				}
+
 				await this.persistGpt5Metadata(reasoningMessage)
 				await this.saveClineMessages()
 				await this.providerRef.deref()?.postStateToWebview()
@@ -2815,6 +2831,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			({ role, content }) => ({ role, content }),
 		)
 
+		// kilocode_change start
+		// Fetch project properties for KiloCode provider tracking
+		const kiloConfig = this.providerRef.deref()?.getKiloConfig()
+		// kilocode_change end
+
 		// Check auto-approval limits
 		const approvalResult = await this.autoApprovalHandler.checkAutoApprovalLimits(
 			state,
@@ -2861,6 +2882,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			...(previousResponseId && !this.skipPrevResponseIdOnce ? { previousResponseId } : {}),
 			// If a condense just occurred, explicitly suppress continuity fallback for the next call
 			...(this.skipPrevResponseIdOnce ? { suppressPreviousResponseId: true } : {}),
+			// kilocode_change start
+			// KiloCode-specific: pass projectId for backend tracking (ignored by other providers)
+			projectId: (await kiloConfig)?.project?.id,
+			// kilocode_change end
 		}
 
 		// Reset skip flag after applying (it only affects the immediate next call)

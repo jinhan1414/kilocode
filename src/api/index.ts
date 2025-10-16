@@ -45,7 +45,7 @@ import {
 	FeatherlessHandler,
 	VercelAiGatewayHandler,
 	DeepInfraHandler,
-	OVHCloudAIEndpointsHandler, // kilocode_change
+	OVHcloudAIEndpointsHandler, // kilocode_change
 } from "./providers"
 // kilocode_change start
 import { KilocodeOpenrouterHandler } from "./providers/kilocode-openrouter"
@@ -74,6 +74,14 @@ export interface ApiHandlerCreateMessageMetadata {
 	 * @default true
 	 */
 	store?: boolean
+	// kilocode_change start
+	/**
+	 * KiloCode-specific: The project ID for the current workspace (derived from git origin remote).
+	 * Used by KiloCodeOpenrouterHandler for backend tracking. Ignored by other providers.
+	 * @kilocode-only
+	 */
+	projectId?: string
+	// kilocode_change end
 }
 
 export interface ApiHandler {
@@ -190,7 +198,7 @@ export function buildApiHandler(configuration: ProviderSettings): ApiHandler {
 			return new VercelAiGatewayHandler(options)
 		// kilocode_change start
 		case "ovhcloud":
-			return new OVHCloudAIEndpointsHandler(options)
+			return new OVHcloudAIEndpointsHandler(options)
 		// kilocode_change end
 		default:
 			apiProvider satisfies "gemini-cli" | undefined
