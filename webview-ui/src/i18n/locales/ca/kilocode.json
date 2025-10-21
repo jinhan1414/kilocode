@@ -251,6 +251,10 @@
 	"memoryWarning": {
 		"message": "L'ús de memòria està al {{percentage}}%. Si us plau, reinicia el teu IDE per evitar fallades."
 	},
+	"toolCallStyle": {
+		"title": "Estil de Crida d'Eina",
+		"description": "Tria com es formaten les crides d'eina al prompt del sistema. JSON és actualment experimental i està principalment destinat a usuaris interessats a contribuir al seu desenvolupament."
+	},
 	"invalidModel": {
 		"alphaPeriodEnded": "🎉 El període alfa per a {{model}} ha finalitzat! Canvia a un model diferent per continuar.",
 		"notAllowedForTeam": "⚠️ La teva organització no permet l'ús del model {{model}}. Canvia a un model diferent per continuar.",

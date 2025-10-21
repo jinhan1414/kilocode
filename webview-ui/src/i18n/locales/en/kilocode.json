@@ -211,6 +211,10 @@
 			"idea7": "Create a calming interactive starfield that moves with mouse gestures"
 		}
 	},
+	"toolCallStyle": {
+		"title": "Tool Call Style",
+		"description": "Choose how tool calls are formatted in the system prompt. JSON is currently experimental and mostly intended for users interested in contributing to its development."
+	},
 	"ghost": {
 		"title": "Autocomplete",
 		"settings": {

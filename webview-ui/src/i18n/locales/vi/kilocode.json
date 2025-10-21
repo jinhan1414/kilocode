@@ -250,6 +250,10 @@
 		"perHour": "Một Giờ",
 		"requestsLabel": "Yêu cầu"
 	},
+	"toolCallStyle": {
+		"title": "Kiểu Gọi Công Cụ",
+		"description": "Chọn cách định dạng các lệnh gọi công cụ trong system prompt. JSON hiện đang ở giai đoạn thử nghiệm và chủ yếu dành cho người dùng quan tâm đến việc đóng góp vào phát triển của nó."
+	},
 	"imageWarnings": {
 		"modelNoImageSupport": "Hình ảnh không được hỗ trợ bởi mô hình hiện tại.",
 		"maxImagesReached": "Tối đa 20 hình ảnh cho mỗi tin nhắn. Hãy xóa một số hình ảnh để thêm được nhiều hơn.",

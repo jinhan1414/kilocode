@@ -249,6 +249,10 @@
 		"requestsLabel": "Anfragen",
 		"perDay": "Pro Tag"
 	},
+	"toolCallStyle": {
+		"title": "Tool-Call-Stil",
+		"description": "Wähle aus, wie Tool-Calls im System-Prompt formatiert werden. JSON ist derzeit experimentell und hauptsächlich für Nutzer gedacht, die an der Weiterentwicklung interessiert sind."
+	},
 	"imageWarnings": {
 		"modelNoImageSupport": "Bilder werden vom aktuellen Modell nicht unterstützt.",
 		"maxImagesReached": "Maximal 20 Bilder pro Nachricht. Entfernen Sie einige Bilder, um weitere hinzuzufügen.",

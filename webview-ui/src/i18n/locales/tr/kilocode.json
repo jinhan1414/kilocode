@@ -95,6 +95,10 @@
 			}
 		}
 	},
+	"toolCallStyle": {
+		"title": "Araç Çağrısı Stili",
+		"description": "Sistem isteminde araç çağrılarının nasıl biçimlendirileceğini seçin. JSON şu anda deneyseldir ve çoğunlukla geliştirilmesine katkıda bulunmak isteyen kullanıcılar için tasarlanmıştır."
+	},
 	"chat": {
 		"condense": {
 			"wantsToCondense": "Kilo Code konuşmanı özetlemek istiyor",

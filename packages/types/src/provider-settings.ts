@@ -29,6 +29,7 @@ import {
 	xaiModels,
 	internationalZAiModels,
 } from "./providers/index.js"
+import { toolUseStylesSchema } from "./kilocode/native-function-calling.js"
 
 /**
  * constants
@@ -196,6 +197,12 @@ const baseProviderSettingsSchema = z.object({
 
 	// Model verbosity.
 	verbosity: verbosityLevelsSchema.optional(),
+
+	// kilocode_change start
+	// Tool style - xml (legacy) or json (modern).
+	// Default to XML for anywhere not specified.
+	toolStyle: toolUseStylesSchema.optional(),
+	// kilocode_change end
 })
 
 // Several of the providers share common model config properties.

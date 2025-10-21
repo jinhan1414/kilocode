@@ -10,21 +10,6 @@ describe("AutoTriggerStrategy", () => {
 		strategy = new AutoTriggerStrategy()
 	})
 
-	describe("canHandle", () => {
-		it("should handle any context with a document", () => {
-			const mockDocument = {
-				languageId: "typescript",
-				getText: () => "const x = 1;",
-			} as vscode.TextDocument
-
-			const context: GhostSuggestionContext = {
-				document: mockDocument,
-			}
-
-			expect(strategy.canHandle(context)).toBe(true)
-		})
-	})
-
 	describe("getPrompts - comment-driven behavior", () => {
 		it("should use comment-specific prompts when cursor is on empty line after comment", () => {
 			const mockDocument = {

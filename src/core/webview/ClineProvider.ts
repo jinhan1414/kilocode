@@ -41,6 +41,7 @@ import {
 	DEFAULT_WRITE_DELAY_MS,
 	ORGANIZATION_ALLOW_ALL,
 	DEFAULT_MODES,
+	getActiveToolUseStyle, // kilocode_change
 } from "@roo-code/types"
 import { TelemetryService } from "@roo-code/telemetry"
 import { CloudService, BridgeOrchestrator, getRooCodeApiUrl } from "@roo-code/cloud"
@@ -740,6 +741,39 @@ export class ClineProvider
 			await visibleProvider.postMessageToWebview({ type: "invoke", invoke: "setChatBoxMessage", text: prompt })
 			return
 		}
+
+		//kilocode_change start
+		if (command === "addToContextAndFocus") {
+			let messageText = prompt
+
+			const editor = vscode.window.activeTextEditor
+			if (editor) {
+				const fullContent = editor.document.getText()
+				const filePath = params.filePath as string
+
+				messageText = `
+For context, we are working within this file:
+
+'${filePath}' (see below for file content)
+<file_content path="${filePath}">
+${fullContent}
+</file_content>
+
+Heed this prompt:
+
+${prompt}
+`
+			}
+
+			await visibleProvider.postMessageToWebview({
+				type: "invoke",
+				invoke: "setChatBoxMessage",
+				text: messageText,
+			})
+			await vscode.commands.executeCommand("kilo-code.focusChatInput")
+			return
+		}
+		// kilocode_change end
 
 		await visibleProvider.createTask(prompt)
 	}
@@ -2992,6 +3026,7 @@ export class ClineProvider
 			// kilocode_change start
 			currentTaskSize: task?.clineMessages.length,
 			taskHistorySize: this.kiloCodeTaskHistorySizeForTelemetryOnly || undefined,
+			toolStyle: getActiveToolUseStyle(apiConfiguration),
 			// kilocode_change end
 		}
 	}

@@ -1,7 +1,7 @@
 // npx vitest run src/__tests__/kilocode.test.ts
 
 import { describe, it, expect } from "vitest"
-import { ghostServiceSettingsSchema } from "../kilocode.js"
+import { ghostServiceSettingsSchema } from "../kilocode/kilocode.js"
 
 describe("ghostServiceSettingsSchema", () => {
 	describe("autoTriggerDelay", () => {

@@ -1,18 +1,9 @@
 import { GhostSuggestionContext } from "../types"
-import { PromptStrategy } from "../types/PromptStrategy"
 import { CURSOR_MARKER } from "../ghostConstants"
 import { formatDocumentWithCursor, getBaseSystemInstructions } from "./StrategyHelpers"
 import { isCommentLine, extractComment, cleanComment } from "./CommentHelpers"
 
-export class AutoTriggerStrategy implements PromptStrategy {
-	name = "Auto Trigger"
-
-	canHandle(context: GhostSuggestionContext): boolean {
-		// This is the fallback strategy, so it can handle anything
-		// But we check for basic requirements
-		return !!context.document
-	}
-
+export class AutoTriggerStrategy {
 	shouldTreatAsComment(context: GhostSuggestionContext): boolean {
 		if (!context.document || !context.range) return false
 

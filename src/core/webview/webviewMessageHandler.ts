@@ -6,7 +6,7 @@ import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 // kilocode_change start
 import axios from "axios"
-import { getKiloBaseUriFromToken } from "../../shared/kilocode/token"
+import { getKiloBaseUriFromToken } from "@roo-code/types"
 import {
 	ProfileData,
 	SeeNewChangesPayload,
