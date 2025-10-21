@@ -104,7 +104,10 @@
 	},
 	"toolCallStyle": {
 		"title": "工具调用样式",
-		"description": "选择系统提示中工具调用的格式。JSON 格式目前处于实验阶段，主要面向有兴趣参与开发的用户。"
+		"description": "选择系统提示中工具调用的格式。JSON 格式目前处于实验阶段，主要面向有兴趣参与开发的用户。",
+		"automatic": "让 Kilo 决定",
+		"xml": "XML",
+		"json": "JSON（实验性）"
 	},
 	"chat": {
 		"condense": {
@@ -229,7 +232,10 @@
 				"label": "手动自动完成（{{keybinding}}）",
 				"description": "需要快速修复、补全或重构？Kilo 将使用周围上下文提供即时改进，保持你的工作流。<DocsLink>查看快捷键</DocsLink>"
 			},
-			"keybindingNotFound": "未找到"
+			"keybindingNotFound": "未找到",
+			"noModelConfigured": "未找到合适的自动补全模型。请在 API 设置中配置提供商。",
+			"model": "模型",
+			"provider": "Provider"
 		}
 	},
 	"virtualProvider": {
@@ -242,7 +248,7 @@
 		"removeProfile": "移除个人资料",
 		"selectProfilePlaceholder": "选择个人资料...",
 		"addProfile": "添加简介",
-		"noProfilesAvailable": "没有配置文件可用。请先配置至少一个非虚拟提供商配置文件。",
+		"noProfilesAvailable": "没有可用的配置文件。请先配置至少一个非虚拟提供商配置文件。",
 		"dangerZoneTitle": "危险区域",
 		"dangerZoneDescription": "这些操作具有破坏性且无法撤销。",
 		"clearUsageData": "清除使用数据",

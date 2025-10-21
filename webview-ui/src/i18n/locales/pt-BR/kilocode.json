@@ -225,7 +225,10 @@
 				"label": "Preenchimento Automático Manual ({{keybinding}})",
 				"description": "Precisa de uma correção rápida, completação ou refatoração? O Kilo usará o contexto ao redor para oferecer melhorias imediatas, mantendo você no fluxo. <DocsLink>Ver atalho</DocsLink>"
 			},
-			"keybindingNotFound": "não encontrado"
+			"keybindingNotFound": "não encontrado",
+			"noModelConfigured": "Nenhum modelo de autocompletar adequado encontrado. Configure um provedor nas configurações da API.",
+			"model": "Modelo",
+			"provider": "Provedor"
 		}
 	},
 	"virtualProvider": {
@@ -238,7 +241,7 @@
 		"removeProfile": "Remover perfil",
 		"selectProfilePlaceholder": "Selecionar perfil...",
 		"addProfile": "Adicionar perfil",
-		"noProfilesAvailable": "Nenhum perfil de perfis disponível. Por favor, configure pelo menos um perfil de provedor não-virtual primeiro.",
+		"noProfilesAvailable": "Nenhum perfil disponível. Por favor, configure pelo menos um perfil de provedor não-virtual primeiro.",
 		"dangerZoneTitle": "Zona de Perigo",
 		"dangerZoneDescription": "Essas ações são destrutivas e não podem ser desfeitas.",
 		"clearUsageData": "Limpar Dados de Uso",
@@ -252,7 +255,10 @@
 	},
 	"toolCallStyle": {
 		"title": "Estilo de Chamada de Ferramenta",
-		"description": "Escolha como as chamadas de ferramentas são formatadas no prompt do sistema. JSON é atualmente experimental e destinado principalmente a usuários interessados em contribuir para seu desenvolvimento."
+		"description": "Escolha como as chamadas de ferramentas são formatadas no prompt do sistema. JSON é atualmente experimental e destinado principalmente a usuários interessados em contribuir para seu desenvolvimento.",
+		"automatic": "Deixe o Kilo decidir",
+		"xml": "XML",
+		"json": "JSON (experimental)"
 	},
 	"imageWarnings": {
 		"modelNoImageSupport": "Imagens não são suportadas pelo modelo atual.",

@@ -213,12 +213,17 @@
 	},
 	"toolCallStyle": {
 		"title": "Tool Call Style",
-		"description": "Choose how tool calls are formatted in the system prompt. JSON is currently experimental and mostly intended for users interested in contributing to its development."
+		"description": "Choose how tool calls are formatted in the system prompt. JSON is currently experimental and mostly intended for users interested in contributing to its development.",
+		"automatic": "Let Kilo decide",
+		"xml": "XML",
+		"json": "JSON (experimental)"
 	},
 	"ghost": {
 		"title": "Autocomplete",
 		"settings": {
 			"triggers": "Triggers",
+			"model": "Model",
+			"provider": "Provider",
 			"enableAutoTrigger": {
 				"label": "Pause to Complete",
 				"description": "When enabled, Kilo Code will automatically trigger Autocomplete when you pause typing. This can be useful for quick fixes and suggestions."
@@ -235,7 +240,8 @@
 				"label": "Manual Autocomplete ({{keybinding}})",
 				"description": "Need a quick fix, completion, or refactor? Kilo will use the surrounding context to offer immediate improvements, keeping you in the flow. <DocsLink>Edit shortcut</DocsLink>"
 			},
-			"keybindingNotFound": "not found"
+			"keybindingNotFound": "not found",
+			"noModelConfigured": "No suitable autocomplete model found. Please configure a provider in the API settings."
 		}
 	},
 	"virtualProvider": {
@@ -248,7 +254,7 @@
 		"removeProfile": "Remove profile",
 		"selectProfilePlaceholder": "Select profile...",
 		"addProfile": "Add profile",
-		"noProfilesAvailable": "No profile profiles available. Please configure at least one non-virtual provider profile first.",
+		"noProfilesAvailable": "No profiles available. Please configure at least one non-virtual provider profile first.",
 		"tokensLabel": "Tokens",
 		"perMinute": "Per Minute",
 		"perHour": "Per Hour",

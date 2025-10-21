@@ -73,6 +73,7 @@ interface ChatTextAreaProps {
 	// Edit mode props
 	isEditMode?: boolean
 	onCancel?: () => void
+	sendMessageOnEnter?: boolean // kilocode_change
 }
 
 export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
@@ -94,6 +95,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			modeShortcutText,
 			isEditMode = false,
 			onCancel,
+			sendMessageOnEnter = true,
 		},
 		ref,
 	) => {
@@ -590,17 +592,24 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 				const isComposing = event.nativeEvent?.isComposing ?? false
 
-				// Handle prompt history navigation using custom hook
-				if (handleHistoryNavigation(event, showContextMenu, isComposing)) {
-					return
-				}
+				// kilocode_change start
+				const shouldSendMessage =
+					!isComposing &&
+					event.key === "Enter" &&
+					((sendMessageOnEnter && !event.shiftKey) || (!sendMessageOnEnter && event.shiftKey))
 
-				if (event.key === "Enter" && !event.shiftKey && !isComposing) {
+				if (shouldSendMessage) {
 					event.preventDefault()
 
 					resetHistoryNavigation()
 					onSend()
 				}
+
+				// Handle prompt history navigation using custom hook
+				if (handleHistoryNavigation(event, showContextMenu, isComposing)) {
+					return
+				}
+				// kilocode_change end
 
 				if (event.key === "Backspace" && !isComposing) {
 					const charBeforeCursor = inputValue[cursorPosition - 1]
@@ -671,6 +680,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 				fileSearchResults,
 				handleHistoryNavigation,
 				resetHistoryNavigation,
+				sendMessageOnEnter,
 			],
 		)
 
@@ -764,7 +774,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								})
 							}, 200) // 200ms debounce.
 						} else {
-							setSelectedMenuIndex(3) // Set to "File" option by default.
+							setSelectedMenuIndex(-1)
 						}
 					}
 				} else {

@@ -241,6 +241,7 @@ export interface WebviewMessage {
 		| "getUsageData" // kilocode_change
 		| "usageDataResponse" // kilocode_change
 		| "showTaskTimeline" // kilocode_change
+		| "sendMessageOnEnter" // kilocode_change
 		| "showTimestamps" // kilocode_change
 		| "hideCostBelowThreshold" // kilocode_change
 		| "toggleTaskFavorite" // kilocode_change
@@ -414,11 +415,16 @@ export interface ProfileDataResponsePayload {
 	error?: string
 }
 
+export interface BalanceData {
+	balance: number
+}
+
 export interface BalanceDataResponsePayload {
 	// New: Payload for balance data
 	success: boolean
-	data?: any // Replace 'any' with a more specific type if known for balance
+	data?: BalanceData
 	error?: string
+	isLoading?: boolean
 }
 
 export interface SeeNewChangesPayload {
