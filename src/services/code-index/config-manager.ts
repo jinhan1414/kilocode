@@ -153,6 +153,9 @@ export class CodeIndexConfigManager {
 		}
 		requiresRestart: boolean
 	}> {
+		// Read project-level enabled state from workspaceState
+		const workspaceEnabled = await this.contextProxy.getWorkspaceState("codebaseIndexEnabled")
+
 		// Capture the ACTUAL previous state before loading new configuration
 		const previousConfigSnapshot: PreviousConfigSnapshot = {
 			enabled: this.codebaseIndexEnabled,
@@ -176,6 +179,13 @@ export class CodeIndexConfigManager {
 
 		// Load new configuration from storage and update instance variables
 		this._loadAndSetConfiguration()
+
+		// Override enabled value with workspace state (project-level)
+		if (workspaceEnabled !== undefined && workspaceEnabled !== null) {
+			this.codebaseIndexEnabled = workspaceEnabled as boolean
+		} else {
+			this.codebaseIndexEnabled = false
+		}
 
 		const requiresRestart = this.doesConfigChangeRequireRestart(previousConfigSnapshot)
 

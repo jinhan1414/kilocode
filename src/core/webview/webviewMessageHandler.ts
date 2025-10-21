@@ -2965,6 +2965,14 @@ export const webviewMessageHandler = async (
 			const settings = message.codeIndexSettings
 
 			try {
+				// Save enabled state to workspaceState (project-level)
+				if (settings.codebaseIndexEnabled !== undefined) {
+					await provider.contextProxy.updateWorkspaceState(
+						"codebaseIndexEnabled",
+						settings.codebaseIndexEnabled,
+					)
+				}
+
 				// Check if embedder provider has changed
 				const currentConfig = getGlobalState("codebaseIndexConfig") || {}
 				const embedderProviderChanged =

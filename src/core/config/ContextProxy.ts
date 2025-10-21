@@ -249,12 +249,36 @@ export class ContextProxy {
 	/**
 	 * WorkspaceState
 	 */
-	async updateWorkspaceState(context: vscode.ExtensionContext, key: string, value: any) {
-		await context.workspaceState.update(key, value)
+	// Overload signatures
+	async updateWorkspaceState(key: string, value: any): Promise<void>
+	async updateWorkspaceState(context: vscode.ExtensionContext, key: string, value: any): Promise<void>
+	// Implementation
+	async updateWorkspaceState(
+		keyOrContext: string | vscode.ExtensionContext,
+		keyOrValue: string | any,
+		value?: any,
+	): Promise<void> {
+		if (typeof keyOrContext === "string") {
+			// New signature: updateWorkspaceState(key, value)
+			await this.originalContext.workspaceState.update(keyOrContext, keyOrValue)
+		} else {
+			// Old signature: updateWorkspaceState(context, key, value)
+			await keyOrContext.workspaceState.update(keyOrValue, value)
+		}
 	}
 
-	async getWorkspaceState(context: vscode.ExtensionContext, key: string) {
-		return await context.workspaceState.get(key)
+	// Overload signatures
+	async getWorkspaceState(key: string): Promise<any>
+	async getWorkspaceState(context: vscode.ExtensionContext, key: string): Promise<any>
+	// Implementation
+	async getWorkspaceState(keyOrContext: string | vscode.ExtensionContext, key?: string): Promise<any> {
+		if (typeof keyOrContext === "string") {
+			// New signature: getWorkspaceState(key)
+			return await this.originalContext.workspaceState.get(keyOrContext)
+		} else {
+			// Old signature: getWorkspaceState(context, key)
+			return await keyOrContext.workspaceState.get(key!)
+		}
 	}
 	// kilocode_change end
 
