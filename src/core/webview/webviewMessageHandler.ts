@@ -2965,7 +2965,7 @@ export const webviewMessageHandler = async (
 			const settings = message.codeIndexSettings
 
 			try {
-				// Save enabled state to workspaceState (project-level)
+				// 1. Save enabled state to workspaceState (project-level) FIRST
 				if (settings.codebaseIndexEnabled !== undefined) {
 					await provider.contextProxy.updateWorkspaceState(
 						"codebaseIndexEnabled",
@@ -2973,29 +2973,28 @@ export const webviewMessageHandler = async (
 					)
 				}
 
-				// Check if embedder provider has changed
+				// 2. Check if embedder provider has changed
 				const currentConfig = getGlobalState("codebaseIndexConfig") || {}
 				const embedderProviderChanged =
 					currentConfig.codebaseIndexEmbedderProvider !== settings.codebaseIndexEmbedderProvider
 
-				// Save global state settings atomically
+				// 3. Save global state settings (shared across projects)
+				// IMPORTANT: codebaseIndexEnabled is NOT included - it's project-specific
 				const globalStateConfig = {
-					...currentConfig,
-					codebaseIndexEnabled: settings.codebaseIndexEnabled,
 					codebaseIndexQdrantUrl: settings.codebaseIndexQdrantUrl,
 					codebaseIndexEmbedderProvider: settings.codebaseIndexEmbedderProvider,
 					codebaseIndexEmbedderBaseUrl: settings.codebaseIndexEmbedderBaseUrl,
 					codebaseIndexEmbedderModelId: settings.codebaseIndexEmbedderModelId,
-					codebaseIndexEmbedderModelDimension: settings.codebaseIndexEmbedderModelDimension, // Generic dimension
+					codebaseIndexEmbedderModelDimension: settings.codebaseIndexEmbedderModelDimension,
 					codebaseIndexOpenAiCompatibleBaseUrl: settings.codebaseIndexOpenAiCompatibleBaseUrl,
 					codebaseIndexSearchMaxResults: settings.codebaseIndexSearchMaxResults,
 					codebaseIndexSearchMinScore: settings.codebaseIndexSearchMinScore,
 				}
 
-				// Save global state first
+				// 4. Save global state
 				await updateGlobalState("codebaseIndexConfig", globalStateConfig)
 
-				// Save secrets directly using context proxy
+				// 5. Save secrets
 				if (settings.codeIndexOpenAiKey !== undefined) {
 					await provider.contextProxy.storeSecret("codeIndexOpenAiKey", settings.codeIndexOpenAiKey)
 				}
@@ -3027,49 +3026,49 @@ export const webviewMessageHandler = async (
 					)
 				}
 
-				// Send success response first - settings are saved regardless of validation
+				// 6. Handle settings change and sync state
+				const currentCodeIndexManager = provider.getCurrentWorkspaceCodeIndexManager()
+				if (currentCodeIndexManager) {
+					try {
+						// Reload configuration to sync enabled state from workspaceState
+						await currentCodeIndexManager.handleSettingsChange()
+					} catch (error) {
+						if (embedderProviderChanged) {
+							// Validation failed after provider change
+							provider.log(
+								`Embedder validation failed: ${error instanceof Error ? error.message : String(error)}`,
+							)
+							await provider.postMessageToWebview({
+								type: "indexingStatusUpdate",
+								values: currentCodeIndexManager.getCurrentStatus(),
+							})
+							await provider.postMessageToWebview({
+								type: "codeIndexSettingsSaved",
+								success: false,
+								error: error instanceof Error ? error.message : String(error),
+							})
+							break
+						} else {
+							// Log but continue - settings are saved
+							provider.log(
+								`Settings change error: ${error instanceof Error ? error.message : String(error)}`,
+							)
+						}
+					}
+				}
+
+				// 7. Update webview state with fresh data
+				await provider.postStateToWebview()
+
+				// 8. Send success response
 				await provider.postMessageToWebview({
 					type: "codeIndexSettingsSaved",
 					success: true,
 					settings: globalStateConfig,
 				})
 
-				// Update webview state
-				await provider.postStateToWebview()
-
-				// Then handle validation and initialization for the current workspace
-				const currentCodeIndexManager = provider.getCurrentWorkspaceCodeIndexManager()
+				// 9. Handle auto-start if needed
 				if (currentCodeIndexManager) {
-					// If embedder provider changed, perform proactive validation
-					if (embedderProviderChanged) {
-						try {
-							// Force handleSettingsChange which will trigger validation
-							await currentCodeIndexManager.handleSettingsChange()
-						} catch (error) {
-							// Validation failed - the error state is already set by handleSettingsChange
-							provider.log(
-								`Embedder validation failed after provider change: ${error instanceof Error ? error.message : String(error)}`,
-							)
-							// Send validation error to webview
-							await provider.postMessageToWebview({
-								type: "indexingStatusUpdate",
-								values: currentCodeIndexManager.getCurrentStatus(),
-							})
-							// Exit early - don't try to start indexing with invalid configuration
-							break
-						}
-					} else {
-						// No provider change, just handle settings normally
-						try {
-							await currentCodeIndexManager.handleSettingsChange()
-						} catch (error) {
-							// Log but don't fail - settings are saved
-							provider.log(
-								`Settings change handling error: ${error instanceof Error ? error.message : String(error)}`,
-							)
-						}
-					}
-
 					// Wait a bit more to ensure everything is ready
 					await new Promise((resolve) => setTimeout(resolve, 200))
 

@@ -10,7 +10,7 @@ import { getDefaultModelId, getModelDimension, getModelScoreThreshold } from "..
  * Handles loading, validating, and providing access to configuration values.
  */
 export class CodeIndexConfigManager {
-	private codebaseIndexEnabled: boolean = true
+	private codebaseIndexEnabled: boolean = false
 	private embedderProvider: EmbedderProvider = "openai"
 	private modelId?: string
 	private modelDimension?: number
@@ -28,6 +28,13 @@ export class CodeIndexConfigManager {
 	constructor(private readonly contextProxy: ContextProxy) {
 		// Initialize with current configuration to avoid false restart triggers
 		this._loadAndSetConfiguration()
+		// Initialize enabled state from workspaceState (sync read)
+		const workspaceEnabled = this.contextProxy.getWorkspaceStateSync("codebaseIndexEnabled")
+		if (workspaceEnabled !== undefined && workspaceEnabled !== null) {
+			this.codebaseIndexEnabled = workspaceEnabled as boolean
+		} else {
+			this.codebaseIndexEnabled = false
+		}
 	}
 
 	/**
@@ -40,11 +47,14 @@ export class CodeIndexConfigManager {
 	/**
 	 * Private method that handles loading configuration from storage and updating instance variables.
 	 * This eliminates code duplication between initializeWithCurrentConfig() and loadConfiguration().
+	 *
+	 * NOTE: codebaseIndexEnabled is NOT loaded here - it's stored in workspaceState (project-level)
+	 * and loaded separately in loadConfiguration() and constructor.
 	 */
 	private _loadAndSetConfiguration(): void {
-		// Load configuration from storage
+		// Load configuration from storage (globalState - shared across projects)
+		// NOTE: codebaseIndexEnabled is NOT in this config - it's project-specific in workspaceState
 		const codebaseIndexConfig = this.contextProxy?.getGlobalState("codebaseIndexConfig") ?? {
-			codebaseIndexEnabled: true,
 			codebaseIndexQdrantUrl: "http://localhost:6333",
 			codebaseIndexEmbedderProvider: "openai",
 			codebaseIndexEmbedderBaseUrl: "",
@@ -54,7 +64,6 @@ export class CodeIndexConfigManager {
 		}
 
 		const {
-			codebaseIndexEnabled,
 			codebaseIndexQdrantUrl,
 			codebaseIndexEmbedderProvider,
 			codebaseIndexEmbedderBaseUrl,
@@ -73,7 +82,8 @@ export class CodeIndexConfigManager {
 		const vercelAiGatewayApiKey = this.contextProxy?.getSecret("codebaseIndexVercelAiGatewayApiKey") ?? ""
 
 		// Update instance variables with configuration
-		this.codebaseIndexEnabled = codebaseIndexEnabled ?? true
+		// Note: codebaseIndexEnabled is NOT loaded here - it will be loaded from workspaceState in loadConfiguration()
+		// This ensures each project has independent enabled state
 		this.qdrantUrl = codebaseIndexQdrantUrl
 		this.qdrantApiKey = qdrantApiKey ?? ""
 		this.searchMinScore = codebaseIndexSearchMinScore

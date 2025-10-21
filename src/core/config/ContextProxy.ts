@@ -280,6 +280,11 @@ export class ContextProxy {
 			return await keyOrContext.workspaceState.get(key!)
 		}
 	}
+
+	// Synchronous version for use in constructors
+	getWorkspaceStateSync(key: string): any {
+		return this.originalContext.workspaceState.get(key)
+	}
 	// kilocode_change end
 
 	/**

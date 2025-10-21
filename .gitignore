@@ -4,6 +4,7 @@ out
 out-*
 node_modules
 package-lock.json
+pnpm-lock.yaml
 coverage/
 mock/
 .DS_Store

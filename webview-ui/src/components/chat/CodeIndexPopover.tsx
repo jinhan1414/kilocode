@@ -207,11 +207,12 @@ export const CodeIndexPopover: React.FC<CodeIndexPopoverProps> = ({
 		setIndexingStatus(externalIndexingStatus)
 	}, [externalIndexingStatus])
 
-	// Initialize settings from global state
+	// Initialize settings from extension state (synced from backend)
 	useEffect(() => {
 		if (codebaseIndexConfig) {
 			const settings = {
-				codebaseIndexEnabled: codebaseIndexConfig.codebaseIndexEnabled ?? true,
+				// codebaseIndexEnabled comes from backend (workspaceState)
+				codebaseIndexEnabled: codebaseIndexConfig.codebaseIndexEnabled ?? false,
 				codebaseIndexQdrantUrl: codebaseIndexConfig.codebaseIndexQdrantUrl || "",
 				codebaseIndexEmbedderProvider: codebaseIndexConfig.codebaseIndexEmbedderProvider || "openai",
 				codebaseIndexEmbedderBaseUrl: codebaseIndexConfig.codebaseIndexEmbedderBaseUrl || "",
@@ -278,16 +279,14 @@ export const CodeIndexPopover: React.FC<CodeIndexPopoverProps> = ({
 			} else if (event.data.type === "codeIndexSettingsSaved") {
 				if (event.data.success) {
 					setSaveStatus("saved")
-					// Update initial settings to match current settings after successful save
-					// This ensures hasUnsavedChanges becomes false
+					// Update settings with the saved values from backend
 					const savedSettings = { ...currentSettingsRef.current }
 					setInitialSettings(savedSettings)
-					// Also update current settings to maintain consistency
 					setCurrentSettings(savedSettings)
-					// Request secret status to ensure we have the latest state
-					// This is important to maintain placeholder display after save
 
+					// Request secret status and indexing status to sync UI
 					vscode.postMessage({ type: "requestCodeIndexSecretStatus" })
+					vscode.postMessage({ type: "requestIndexingStatus" })
 
 					setSaveStatus("idle")
 				} else {
