@@ -276,12 +276,29 @@ export async function presentAssistantMessage(cline: Task, recursionDepth: numbe
 			}
 
 			const pushToolResult = (content: ToolResponse) => {
-				cline.userMessageContent.push({ type: "text", text: `${toolDescription()} Result:` })
+				// kilocode_change: Use the stored ID from native tool calls, or generate one for XML-based tools
+				const toolUseId = block.id || `toolu_${block.name}_${Date.now()}`
 
+				// Add tool result in Anthropic format
 				if (typeof content === "string") {
-					cline.userMessageContent.push({ type: "text", text: content || "(tool did not return anything)" })
+					cline.userMessageContent.push({
+						type: "tool_result",
+						tool_use_id: toolUseId,
+						content: `${toolDescription()} Result:\n${content || "(tool did not return anything)"}`,
+						tool_name: block.name,
+					} as any)
 				} else {
-					cline.userMessageContent.push(...content)
+					// For array content, combine text parts
+					const textParts = content
+						.filter((c) => c.type === "text")
+						.map((c) => c.text)
+						.join("\n")
+					cline.userMessageContent.push({
+						type: "tool_result",
+						tool_use_id: toolUseId,
+						content: `${toolDescription()} Result:\n${textParts}`,
+						tool_name: block.name,
+					} as any)
 				}
 
 				// Once a tool result has been collected, ignore all other tool

@@ -2429,7 +2429,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					await this.addToApiConversationHistory({
 						role: "assistant",
-						content: [{ type: "text", text: assistantMessage }],
+						content:
+							this.assistantMessageContent.length > 0
+								? this.assistantMessageContent.map((block) => {
+										if (block.type === "text") return { type: "text", text: block.content || "" }
+										// kilocode_change: Use the stored ID from native tool calls, or generate one for XML-based tools
+										if (block.type === "tool_use")
+											return {
+												type: "tool_use",
+												id: block.id || `toolu_${block.name}_${Date.now()}`,
+												name: block.name,
+												input: block.params,
+											}
+										return { type: "text", text: "" }
+									})
+								: [{ type: "text", text: assistantMessage }],
 					})
 
 					TelemetryService.instance.captureConversationMessage(this.taskId, "assistant")

@@ -182,11 +182,13 @@ export class AssistantMessageParser {
 				}
 
 				// Create a ToolUse block from the native tool call
+				// kilocode_change: Store the original tool call ID
 				const toolUse: ToolUse = {
 					type: "tool_use",
 					name: toolName as ToolName,
 					params: parsedArgs,
 					partial: false, // Now complete after accumulation
+					id: toolCallId, // Preserve the original ID from the native tool call
 				}
 
 				// Add the tool use to content blocks
