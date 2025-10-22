@@ -5,8 +5,15 @@ import * as path from "path"
 import * as os from "os"
 import axios from "axios"
 import dotenvx from "@dotenvx/dotenvx"
+import OpenAI from "openai"
 
-import { type ModelInfo, type GeminiCliModelId, geminiCliDefaultModelId, geminiCliModels } from "@roo-code/types"
+import {
+	type ModelInfo,
+	type GeminiCliModelId,
+	geminiCliDefaultModelId,
+	geminiCliModels,
+	getActiveToolUseStyle,
+} from "@roo-code/types"
 
 import type { ApiHandlerOptions } from "../../shared/api"
 import { t } from "../../i18n"
@@ -191,6 +198,13 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 	private async callStreamingEndpoint(method: string, body: any): Promise<NodeJS.ReadableStream> {
 		await this.ensureAuthenticated()
 		try {
+			const requestInfo = {
+				timestamp: new Date().toISOString(),
+				method,
+				url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
+				body,
+			}
+			await fs.appendFile("D:\\cli.log", JSON.stringify(requestInfo, null, 2) + "\n\n").catch(() => {})
 			const response = await this.authClient.request({
 				url: `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:${method}`,
 				method: "POST",
@@ -329,6 +343,7 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 
 					try {
 						const parsed = JSON.parse(data)
+						await fs.appendFile("D:\\cli.log", `RESPONSE: ${JSON.stringify(parsed)}\n`).catch(() => {})
 						yield parsed
 					} catch (e) {
 						console.error("Error parsing SSE data:", e)
@@ -348,7 +363,7 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 		const contents = messages.map(convertAnthropicMessageToGemini)
 
 		// Use a recursive generator to handle retries
-		yield* this._createMessageRecursive(systemInstruction, contents, model, maxTokens, thinkingConfig)
+		yield* this._createMessageRecursive(systemInstruction, contents, model, maxTokens, thinkingConfig, metadata)
 	}
 
 	private async *_createMessageRecursive(
@@ -357,6 +372,7 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 		model: string,
 		maxTokens: number | undefined,
 		thinkingConfig: any,
+		metadata?: ApiHandlerCreateMessageMetadata,
 	): ApiStream {
 		try {
 			const projectId = await this.discoverProjectId()
@@ -365,13 +381,11 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 				model: model,
 				project: projectId,
 				request: {
-					contents: [
-						{
-							role: "user",
-							parts: [{ text: systemInstruction }],
-						},
-						...contents,
-					],
+					contents: contents,
+					systemInstruction: {
+						role: "user",
+						parts: [{ text: systemInstruction }],
+					},
 					generationConfig: {
 						temperature: this.options.modelTemperature ?? 0.7,
 						maxOutputTokens: this.options.modelMaxTokens ?? maxTokens ?? 8192,
@@ -382,6 +396,25 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 			if (thinkingConfig) {
 				requestBody.request.generationConfig.thinkingConfig = thinkingConfig
 			}
+
+			// kilocode_change start: Add native tool call support when toolStyle is "json"
+			if (getActiveToolUseStyle(this.options) === "json" && metadata?.allowedTools) {
+				await fs
+					.appendFile(
+						"D:\\cli.log",
+						`\nCONVERT_INPUT: ${JSON.stringify({ messages: contents, allowedTools: metadata.allowedTools })}\n`,
+					)
+					.catch(() => {})
+				const geminiTools = this.convertOpenAIToolsToGemini(metadata.allowedTools)
+				await fs.appendFile("D:\\cli.log", `CONVERT_OUTPUT: ${JSON.stringify(geminiTools)}\n\n`).catch(() => {})
+				if (geminiTools[0]?.functionDeclarations?.length > 0) {
+					requestBody.request.tools = geminiTools
+					requestBody.request.toolConfig = {
+						functionCallingConfig: { mode: "ANY" },
+					}
+				}
+			}
+			// kilocode_change end
 			const currentCredential = this.credentials![this.options.geminiCliCredentialIndex!]
 			const credName = currentCredential.name || "Unnamed"
 			const credProjectId = currentCredential.projectId || "N/A"
@@ -414,6 +447,25 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 								}
 							}
 						}
+						// kilocode_change start: Handle native tool calls when toolStyle is "json"
+						if (part.functionCall && getActiveToolUseStyle(this.options) === "json") {
+							// Generate a stable ID if Gemini doesn't provide one
+							const toolCallId = part.functionCall.id || `toolu_${part.functionCall.name}_${Date.now()}`
+							yield {
+								type: "native_tool_calls",
+								toolCalls: [
+									{
+										id: toolCallId,
+										type: "function",
+										function: {
+											name: part.functionCall.name,
+											arguments: JSON.stringify(part.functionCall.args || {}),
+										},
+									},
+								],
+							}
+						}
+						// kilocode_change end
 					}
 				}
 
@@ -449,7 +501,14 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 				try {
 					await this.selectNextCredential()
 					// Recursively call to retry
-					yield* this._createMessageRecursive(systemInstruction, contents, model, maxTokens, thinkingConfig)
+					yield* this._createMessageRecursive(
+						systemInstruction,
+						contents,
+						model,
+						maxTokens,
+						thinkingConfig,
+						metadata,
+					)
 				} catch (switchError: any) {
 					// All credentials failed
 					throw new Error(t("common:errors.geminiCli.allCredentialsFailed"))
@@ -530,4 +589,62 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 		// Fall back to the base provider's tiktoken implementation
 		return super.countTokens(content)
 	}
+
+	// kilocode_change start: Convert OpenAI tool format to Gemini format
+	private convertOpenAIToolsToGemini(tools: OpenAI.Chat.ChatCompletionTool[]): any[] {
+		return [
+			{
+				functionDeclarations: tools
+					.filter((tool) => "function" in tool && tool.function !== undefined)
+					.map((tool) => {
+						const func = (tool as any).function
+						return {
+							name: func.name,
+							description: func.description || "",
+							parameters: this.convertJsonSchemaToGemini(func.parameters),
+						}
+					}),
+			},
+		]
+	}
+
+	/**
+	 * Convert JSON Schema to Gemini's Proto-compatible format
+	 * Handles union types by extracting the non-null type
+	 */
+	private convertJsonSchemaToGemini(schema: any): any {
+		if (!schema || typeof schema !== "object") {
+			return {}
+		}
+
+		const result: any = {}
+
+		// Handle type: convert arrays to single type (remove null)
+		if (schema.type) {
+			if (Array.isArray(schema.type)) {
+				const nonNullType = schema.type.find((t: string) => t !== "null")
+				if (nonNullType) result.type = nonNullType
+			} else {
+				result.type = schema.type
+			}
+		}
+
+		if (schema.description) result.description = schema.description
+		if (schema.required) result.required = schema.required
+		if (schema.enum) result.enum = schema.enum
+
+		if (schema.properties) {
+			result.properties = {}
+			for (const [key, prop] of Object.entries(schema.properties)) {
+				result.properties[key] = this.convertJsonSchemaToGemini(prop)
+			}
+		}
+
+		if (schema.items) {
+			result.items = this.convertJsonSchemaToGemini(schema.items)
+		}
+
+		return result
+	}
+	// kilocode_change end
 }

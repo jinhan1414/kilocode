@@ -17,6 +17,7 @@ export const nativeFunctionCallingProviders = [
 	"deepinfra",
 	"xai",
 	"zai",
+	"gemini-cli",
 ] satisfies ProviderName[] as ProviderName[]
 
 const modelsDefaultingToNativeFunctionCalls = ["anthropic/claude-haiku-4.5"]

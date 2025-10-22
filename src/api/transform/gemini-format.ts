@@ -6,9 +6,13 @@ export function convertAnthropicContentToGemini(content: string | Anthropic.Cont
 		return [{ text: content }]
 	}
 
-	return content.flatMap((block): Part | Part[] => {
+	const parts = content.flatMap((block): Part | Part[] => {
 		switch (block.type) {
 			case "text":
+				// Filter out empty text blocks
+				if (!block.text || block.text.trim() === "") {
+					return []
+				}
 				return { text: block.text }
 			case "image":
 				if (block.source.type !== "base64") {
@@ -19,6 +23,7 @@ export function convertAnthropicContentToGemini(content: string | Anthropic.Cont
 			case "tool_use":
 				return {
 					functionCall: {
+						id: block.id,
 						name: block.name,
 						args: block.input as Record<string, unknown>,
 					},
@@ -28,12 +33,16 @@ export function convertAnthropicContentToGemini(content: string | Anthropic.Cont
 					return []
 				}
 
-				// Extract tool name from tool_use_id (e.g., "calculator-123" -> "calculator")
-				const toolName = block.tool_use_id.split("-")[0]
+				// Get tool name from the saved tool_name field
+				const toolName = (block as any).tool_name || block.tool_use_id
 
 				if (typeof block.content === "string") {
 					return {
-						functionResponse: { name: toolName, response: { name: toolName, content: block.content } },
+						functionResponse: {
+							id: block.tool_use_id,
+							name: toolName,
+							response: { output: block.content },
+						},
 					}
 				}
 
@@ -59,7 +68,7 @@ export function convertAnthropicContentToGemini(content: string | Anthropic.Cont
 
 				// Return function response followed by any images
 				return [
-					{ functionResponse: { name: toolName, response: { name: toolName, content: contentText } } },
+					{ functionResponse: { id: block.tool_use_id, name: toolName, response: { output: contentText } } },
 					...imageParts,
 				]
 			}
@@ -68,6 +77,10 @@ export function convertAnthropicContentToGemini(content: string | Anthropic.Cont
 				throw new Error(`Unsupported content block type: ${block.type}`)
 		}
 	})
+
+	// If all parts were filtered out (e.g., only empty text), return empty array
+	// This is valid for Gemini when there's only a functionCall in the original message
+	return parts
 }
 
 export function convertAnthropicMessageToGemini(message: Anthropic.Messages.MessageParam): Content {
