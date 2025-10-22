@@ -7,6 +7,7 @@ import { useAppTranslation } from "@src/i18n/TranslationContext"
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 
 import { inputEventTransform } from "../transforms"
+import { ToolUseControl } from "../kilocode/ToolUseControl"
 
 type GeminiCliProps = {
 	apiConfiguration: ProviderSettings
@@ -87,6 +88,11 @@ export const GeminiCli = ({ apiConfiguration, setApiConfigurationField }: Gemini
 					{t("settings:providers.geminiCli.freeAccess")}
 				</span>
 			</div>
+
+			<ToolUseControl
+				toolStyle={apiConfiguration.toolStyle}
+				onChange={(field, value) => setApiConfigurationField(field, value)}
+			/>
 		</>
 	)
 }

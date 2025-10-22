@@ -882,6 +882,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						<ContextManagementSettings
 							autoCondenseContext={autoCondenseContext}
 							autoCondenseContextPercent={autoCondenseContextPercent}
+							condensingApiConfigId={condensingApiConfigId}
 							listApiConfigMeta={listApiConfigMeta ?? []}
 							maxOpenTabsContext={maxOpenTabsContext}
 							maxWorkspaceFiles={maxWorkspaceFiles ?? 200}

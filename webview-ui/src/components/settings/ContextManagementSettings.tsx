@@ -15,6 +15,7 @@ import { vscode } from "@/utils/vscode"
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
+	condensingApiConfigId?: string
 	listApiConfigMeta: any[]
 	maxOpenTabsContext: number
 	maxWorkspaceFiles: number
@@ -31,6 +32,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
+		| "condensingApiConfigId"
 		| "maxOpenTabsContext"
 		| "maxWorkspaceFiles"
 		| "showRooIgnoredFiles"
@@ -49,6 +51,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 export const ContextManagementSettings = ({
 	autoCondenseContext,
 	autoCondenseContextPercent,
+	condensingApiConfigId,
 	listApiConfigMeta,
 	maxOpenTabsContext,
 	maxWorkspaceFiles,
@@ -383,6 +386,34 @@ export const ContextManagementSettings = ({
 				</VSCodeCheckbox>
 				{autoCondenseContext && (
 					<div className="flex flex-col gap-3 pl-3 border-l-2 border-vscode-button-background">
+						<div>
+							<span className="block font-medium mb-1">
+								{t("settings:contextManagement.condensingApiConfiguration.label")}
+							</span>
+							<Select
+								value={condensingApiConfigId || "__default__"}
+								onValueChange={(value) =>
+									setCachedStateField("condensingApiConfigId", value === "__default__" ? "" : value)
+								}
+								data-testid="condensing-api-config-select">
+								<SelectTrigger className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__default__">
+										{t("settings:contextManagement.condensingApiConfiguration.useCurrentConfig")}
+									</SelectItem>
+									{(listApiConfigMeta || []).map((config) => (
+										<SelectItem key={config.id} value={config.id}>
+											{config.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:contextManagement.condensingApiConfiguration.description")}
+							</div>
+						</div>
 						<div className="flex items-center gap-4 font-bold">
 							<FoldVertical size={16} />
 							<div>{t("settings:contextManagement.condensingThreshold.label")}</div>
