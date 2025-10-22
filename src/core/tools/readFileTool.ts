@@ -25,8 +25,23 @@ import {
 } from "./helpers/imageHelpers"
 
 export function getReadFileToolDescription(blockName: string, blockParams: any): string {
-	// Handle both single path and multiple files via args
-	if (blockParams.args) {
+	// Handle native JSON format first (files parameter from OpenAI-style tool calls)
+	if (blockParams.files && Array.isArray(blockParams.files)) {
+		const paths = blockParams.files.map((f: any) => f?.path).filter(Boolean) as string[]
+
+		if (paths.length === 0) {
+			return `[${blockName} with no valid paths]`
+		} else if (paths.length === 1) {
+			return `[${blockName} for '${paths[0]}'. Reading multiple files at once is more efficient for the LLM. If other files are relevant to your current task, please read them simultaneously.]`
+		} else if (paths.length <= 3) {
+			const pathList = paths.map((p) => `'${p}'`).join(", ")
+			return `[${blockName} for ${pathList}]`
+		} else {
+			return `[${blockName} for ${paths.length} files]`
+		}
+	}
+	// Handle XML args format (multiple files via args)
+	else if (blockParams.args) {
 		try {
 			const parsed = parseXml(blockParams.args) as any
 			const files = Array.isArray(parsed.file) ? parsed.file : [parsed.file].filter(Boolean)

@@ -4,9 +4,19 @@ export const apply_diff_single_file = {
 	type: "function",
 	function: {
 		name: "apply_diff",
-		description: `
-Apply precise, targeted modifications to an existing file using one or more search/replace blocks. This tool is for surgical edits only; the 'SEARCH' block must exactly match the existing content, including whitespace and indentation. To make multiple targeted changes, provide multiple SEARCH/REPLACE blocks in the 'diff' parameter. Use the 'read_file' tool first if you are not confident in the exact content to search for.
-`,
+		description: `Apply precise, targeted modifications to an existing file using search/replace blocks. This tool performs "find and replace" operations - the SEARCH block locates content, and the REPLACE block defines what to put in its place.
+
+CRITICAL RULES:
+1. SEARCH block MUST contain at least one line that exactly matches existing file content (including whitespace/indentation). This serves as the "anchor point".
+2. SEARCH block CANNOT be empty - even for insertions, you need an anchor line.
+3. For insertions: REPLACE = SEARCH content + new content (before or after the anchor).
+4. Use 'read_file' first if unsure of exact content.
+
+USE CASES:
+- Replace: SEARCH for old content, REPLACE with new content
+- Insert after: SEARCH for anchor line, REPLACE with anchor + new lines
+- Insert before: SEARCH for anchor line, REPLACE with new lines + anchor
+- Delete: SEARCH for content to remove, REPLACE with empty or surrounding content`,
 		parameters: {
 			type: "object",
 			properties: {
@@ -16,16 +26,76 @@ Apply precise, targeted modifications to an existing file using one or more sear
 				},
 				diff: {
 					type: "string",
-					description: `
-A string containing one or more search/replace blocks defining the changes. The ':start_line:' is required and indicates the starting line number of the original content.  You must not add a start line for the replacement content. Each block must follow this format:
+					description: `One or more search/replace blocks. Format:
 <<<<<<< SEARCH
  :start_line:[line_number]
  -------
- [exact content to find]
+ [exact content to find - must match file exactly]
  =======
  [new content to replace with]
  >>>>>>> REPLACE
-`,
+
+EXAMPLES:
+
+Example 1 - Replace text:
+Original file:
+  Line 1
+  Line 2
+  Line 3
+Operation:
+<<<<<<< SEARCH
+ :start_line:2
+ -------
+ Line 2
+ =======
+ New Line 2
+ >>>>>>> REPLACE
+
+Example 2 - Insert AFTER a line:
+Original file:
+  Line 1
+  Line 2
+  Line 3
+Operation (insert after Line 2):
+<<<<<<< SEARCH
+ :start_line:2
+ -------
+ Line 2
+ =======
+ Line 2
+ Inserted line after Line 2
+ >>>>>>> REPLACE
+
+Example 3 - Insert BEFORE a line:
+Original file:
+  Line 1
+  Line 2
+  Line 3
+Operation (insert before Line 2):
+<<<<<<< SEARCH
+ :start_line:2
+ -------
+ Line 2
+ =======
+ Inserted line before Line 2
+ Line 2
+ >>>>>>> REPLACE
+
+Example 4 - Multiple changes:
+<<<<<<< SEARCH
+ :start_line:5
+ -------
+ old code line 5
+ =======
+ new code line 5
+ >>>>>>> REPLACE
+<<<<<<< SEARCH
+ :start_line:10
+ -------
+ old code line 10
+ =======
+ new code line 10
+ >>>>>>> REPLACE`,
 				},
 			},
 			required: ["path", "diff"],
@@ -39,8 +109,20 @@ export const apply_diff_multi_file = {
 	type: "function",
 	function: {
 		name: "apply_diff",
-		description:
-			"Apply precise, targeted modifications to one or more files by searching for specific sections of content and replacing them. This tool is for surgical edits only and supports making changes across multiple files in a single request. The 'SEARCH' block must exactly match the existing content, including whitespace and indentation. You must use this tool to edit multiple files in a single operation whenever possible.",
+		description: `Apply precise, targeted modifications to multiple files in a single operation. This tool performs "find and replace" operations across files - the SEARCH block locates content, and the REPLACE block defines what to put in its place.
+
+CRITICAL RULES:
+1. SEARCH block MUST contain at least one line that exactly matches existing file content (including whitespace/indentation). This serves as the "anchor point".
+2. SEARCH block CANNOT be empty - even for insertions, you need an anchor line.
+3. For insertions: REPLACE = SEARCH content + new content (before or after the anchor).
+4. Use 'read_file' first if unsure of exact content.
+5. Use this tool to edit multiple files in a single operation whenever possible.
+
+USE CASES:
+- Replace: SEARCH for old content, REPLACE with new content
+- Insert after: SEARCH for anchor line, REPLACE with anchor + new lines
+- Insert before: SEARCH for anchor line, REPLACE with new lines + anchor
+- Delete: SEARCH for content to remove, REPLACE with empty or surrounding content`,
 		parameters: {
 			type: "object",
 			properties: {
@@ -64,19 +146,42 @@ export const apply_diff_multi_file = {
 									properties: {
 										content: {
 											type: "string",
-											description: `
-The search/replace block defining the changes. The SEARCH block must exactly match the content to be replaced. Format: 
-'<<<<<<< SEARCH
-[content_to_find]
+											description: `Search/replace block defining the changes. Format:
+<<<<<<< SEARCH
+[exact content to find - must match file exactly]
 =======
-[content_to_replace_with]
+[new content to replace with]
 >>>>>>> REPLACE
- `,
+
+EXAMPLES:
+
+Replace:
+<<<<<<< SEARCH
+old line
+=======
+new line
+>>>>>>> REPLACE
+
+Insert after anchor:
+<<<<<<< SEARCH
+anchor line
+=======
+anchor line
+new line inserted after
+>>>>>>> REPLACE
+
+Insert before anchor:
+<<<<<<< SEARCH
+anchor line
+=======
+new line inserted before
+anchor line
+>>>>>>> REPLACE`,
 										},
 										start_line: {
 											type: "integer",
 											description:
-												"The line number in the original file where the SEARCH block begins.",
+												"The line number in the original file where the SEARCH block begins. This helps locate the anchor point.",
 										},
 									},
 									required: ["content", "start_line"],
