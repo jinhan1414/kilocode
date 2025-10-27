@@ -73,72 +73,72 @@ const createModelInfo = ({
 export const getGeminiModels = async ({ apiKey, baseUrl }: GeminiFetcherOptions = {}): Promise<
 	Record<string, ModelInfo>
 > => {
-	if (!apiKey) {
-		console.debug("[getGeminiModels] No API key provided, returning static models")
-		return { ...STATIC_MODELS }
-	}
+	// if (!apiKey) {
+	// 	console.debug("[getGeminiModels] No API key provided, returning static models")
+	// 	return { ...STATIC_MODELS }
+	// }
+	return { ...STATIC_MODELS }
+	// try {
+	// 	console.debug("[getGeminiModels] Fetching models", {
+	// 		hasApiKey: true,
+	// 		baseUrl,
+	// 	})
+	// 	const client = new GoogleGenAI({ apiKey })
+	// 	const listParams = baseUrl ? { config: { httpOptions: { baseUrl } } } : {}
+	// 	const pager = await client.models.list(listParams)
 
-	try {
-		console.debug("[getGeminiModels] Fetching models", {
-			hasApiKey: true,
-			baseUrl,
-		})
-		const client = new GoogleGenAI({ apiKey })
-		const listParams = baseUrl ? { config: { httpOptions: { baseUrl } } } : {}
-		const pager = await client.models.list(listParams)
+	// 	const models: Record<string, ModelInfo> = {}
+	// 	const fetchedBaseIds = new Set<string>()
 
-		const models: Record<string, ModelInfo> = {}
-		const fetchedBaseIds = new Set<string>()
+	// 	for await (const model of pager) {
+	// 		const id = normalizeModelId(model.name)
 
-		for await (const model of pager) {
-			const id = normalizeModelId(model.name)
+	// 		if (!id || !isSupportedModelId(id)) {
+	// 			continue
+	// 		}
 
-			if (!id || !isSupportedModelId(id)) {
-				continue
-			}
+	// 		fetchedBaseIds.add(id)
 
-			fetchedBaseIds.add(id)
+	// 		const staticInfo = STATIC_MODELS[id]
 
-			const staticInfo = STATIC_MODELS[id]
+	// 		models[id] = createModelInfo({
+	// 			id,
+	// 			staticInfo,
+	// 			inputTokenLimit: model.inputTokenLimit ?? undefined,
+	// 			outputTokenLimit: model.outputTokenLimit ?? undefined,
+	// 			displayName: model.displayName,
+	// 			description: model.description,
+	// 		})
+	// 	}
 
-			models[id] = createModelInfo({
-				id,
-				staticInfo,
-				inputTokenLimit: model.inputTokenLimit ?? undefined,
-				outputTokenLimit: model.outputTokenLimit ?? undefined,
-				displayName: model.displayName,
-				description: model.description,
-			})
-		}
+	// 	// Include reasoning variants (e.g. :thinking) when the base model is available.
+	// 	for (const [id, staticInfo] of Object.entries(STATIC_MODELS)) {
+	// 		if (!id.includes(":")) {
+	// 			continue
+	// 		}
 
-		// Include reasoning variants (e.g. :thinking) when the base model is available.
-		for (const [id, staticInfo] of Object.entries(STATIC_MODELS)) {
-			if (!id.includes(":")) {
-				continue
-			}
+	// 		const baseId = id.split(":")[0]
+	// 		if (models[baseId] || fetchedBaseIds.has(baseId)) {
+	// 			models[id] = createModelInfo({ id, staticInfo })
+	// 		}
+	// 	}
 
-			const baseId = id.split(":")[0]
-			if (models[baseId] || fetchedBaseIds.has(baseId)) {
-				models[id] = createModelInfo({ id, staticInfo })
-			}
-		}
+	// 	if (!Object.keys(models).length) {
+	// 		console.debug("[getGeminiModels] No models returned from API, falling back to static list")
+	// 		return { ...STATIC_MODELS }
+	// 	}
 
-		if (!Object.keys(models).length) {
-			console.debug("[getGeminiModels] No models returned from API, falling back to static list")
-			return { ...STATIC_MODELS }
-		}
+	// 	if (!models[geminiDefaultModelId] && STATIC_MODELS[geminiDefaultModelId]) {
+	// 		models[geminiDefaultModelId] = createModelInfo({
+	// 			id: geminiDefaultModelId,
+	// 			staticInfo: STATIC_MODELS[geminiDefaultModelId],
+	// 		})
+	// 	}
 
-		if (!models[geminiDefaultModelId] && STATIC_MODELS[geminiDefaultModelId]) {
-			models[geminiDefaultModelId] = createModelInfo({
-				id: geminiDefaultModelId,
-				staticInfo: STATIC_MODELS[geminiDefaultModelId],
-			})
-		}
-
-		console.debug("[getGeminiModels] Returning models", { count: Object.keys(models).length })
-		return models
-	} catch (error) {
-		console.error("[getGeminiModels] Error fetching Gemini models", error)
-		return { ...STATIC_MODELS }
-	}
+	// 	console.debug("[getGeminiModels] Returning models", { count: Object.keys(models).length })
+	// 	return models
+	// } catch (error) {
+	// 	console.error("[getGeminiModels] Error fetching Gemini models", error)
+	// 	return { ...STATIC_MODELS }
+	// }
 }

@@ -161,7 +161,7 @@ export class ClineProvider
 	private workspaceFolders: { name: string; path: string }[] = []
 	private activeWorkspacePath: string = ""
 	public cwd: string = ""
-	private balanceHandlers: Array<(data: BalanceDataResponsePayload) => void> = [] // kilocode_change
+	// private balanceHandlers: Array<(data: BalanceDataResponsePayload) => void> = [] // kilocode_change
 	private pendingOperations: Map<string, PendingEditOperation> = new Map()
 	private static readonly PENDING_OPERATION_TIMEOUT_MS = 30000 // 30 seconds
 

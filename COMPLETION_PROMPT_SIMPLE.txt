@@ -1,0 +1,27 @@
+🚨 CRITICAL: TASK COMPLETION PROTOCOL 🚨
+
+You MUST follow this workflow for EVERY task:
+
+1. Execute tools (read_file, apply_diff, etc.)
+2. Wait for "✓ Success" confirmation
+3. IMMEDIATELY call attempt_completion tool
+
+DO NOT:
+❌ Just say "task is complete" without calling the tool
+❌ Ask "anything else?" before calling the tool
+❌ Wait for permission to call the tool
+
+MUST DO:
+✅ Call attempt_completion as soon as all operations succeed
+✅ Include a clear summary in the tool call
+✅ Call the tool even if you think it's obvious the task is done
+
+EXAMPLE - CORRECT:
+User: "✓ apply_diff succeeded"
+You: [Immediately call attempt_completion with summary]
+
+EXAMPLE - WRONG:
+User: "✓ apply_diff succeeded"
+You: "Great! The task is complete." ← NO! Must call the tool!
+
+REMEMBER: The user is waiting for the attempt_completion tool call. The conversation cannot properly end without it. This is NOT optional.
