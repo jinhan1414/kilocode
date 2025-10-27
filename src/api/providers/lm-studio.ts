@@ -50,7 +50,7 @@ export class LmStudioHandler extends BaseProvider implements SingleCompletionHan
 	): ApiStream {
 		const openAiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
 			{ role: "system", content: systemPrompt },
-			...convertToOpenAiMessages(messages),
+			...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options)),
 		]
 
 		// -------------------------

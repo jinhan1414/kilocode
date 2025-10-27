@@ -120,7 +120,8 @@ export class GeminiHandler extends BaseProvider implements SingleCompletionHandl
 		await this.ensureModelsLoaded() // kilocode_change
 		const { id: model, info, reasoning: thinkingConfig, maxTokens } = this.getModel()
 
-		const contents = messages.map(convertAnthropicMessageToGemini)
+		// Gemini API provider always uses native JSON format
+		const contents = messages.map((msg) => convertAnthropicMessageToGemini(msg, "json" as const))
 
 		const tools: GenerateContentConfig["tools"] = []
 		if (this.options.enableUrlContext) {
@@ -330,7 +331,7 @@ export class GeminiHandler extends BaseProvider implements SingleCompletionHandl
 
 			const response = await this.client.models.countTokens({
 				model,
-				contents: convertAnthropicContentToGemini(content),
+				contents: convertAnthropicContentToGemini(content, "json"),
 			})
 
 			if (response.totalTokens === undefined) {

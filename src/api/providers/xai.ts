@@ -69,7 +69,10 @@ export class XAIHandler extends BaseProvider implements SingleCompletionHandler 
 						model: modelId,
 						max_tokens: modelInfo.maxTokens,
 						temperature: this.options.modelTemperature ?? XAI_DEFAULT_TEMPERATURE,
-						messages: [{ role: "system", content: systemPrompt }, ...convertToOpenAiMessages(messages)],
+						messages: [
+							{ role: "system", content: systemPrompt },
+							...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options)),
+						],
 						stream: true,
 						stream_options: { include_usage: true },
 						...(reasoning && reasoning),

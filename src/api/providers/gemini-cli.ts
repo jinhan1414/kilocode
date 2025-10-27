@@ -32,7 +32,8 @@ const OAUTH_REDIRECT_URI = "http://localhost:45289"
 
 // Code Assist API Configuration
 // const CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
-const CODE_ASSIST_ENDPOINT = "https://gemini-cli.141464.xyz"
+// const CODE_ASSIST_ENDPOINT = "https://gemini-cli.141464.xyz"
+const CODE_ASSIST_ENDPOINT = "https://denoproxy.141464.xyz/https://cloudcode-pa.googleapis.com"
 const CODE_ASSIST_API_VERSION = "v1internal"
 
 interface OAuthCredentials {
@@ -360,7 +361,8 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 	): ApiStream {
 		await this.ensureAuthenticated()
 		const { id: model, info, reasoning: thinkingConfig, maxTokens } = this.getModel()
-		const contents = messages.map(convertAnthropicMessageToGemini)
+		const toolStyle = getActiveToolUseStyle(this.options)
+		const contents = messages.map((msg) => convertAnthropicMessageToGemini(msg, toolStyle))
 
 		// Use a recursive generator to handle retries
 		yield* this._createMessageRecursive(systemInstruction, contents, model, maxTokens, thinkingConfig, metadata)
@@ -398,7 +400,10 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 			}
 
 			// kilocode_change start: Add native tool call support when toolStyle is "json"
-			if (getActiveToolUseStyle(this.options) === "json" && metadata?.allowedTools) {
+			// When using xml tool style, don't pass tools to the API
+			// The tool definitions will be in the system prompt instead
+			const toolUseStyle = getActiveToolUseStyle(this.options)
+			if (toolUseStyle === "json" && metadata?.allowedTools) {
 				await fs
 					.appendFile(
 						"D:\\cli.log",
@@ -406,6 +411,26 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 					)
 					.catch(() => {})
 				const geminiTools = this.convertOpenAIToolsToGemini(metadata.allowedTools)
+
+				// Add google_web_search as a function declaration
+				if (geminiTools[0]?.functionDeclarations) {
+					geminiTools[0].functionDeclarations.push({
+						name: "google_web_search",
+						description:
+							"Performs a web search using Google Search. Use this to find current information on the web.",
+						parameters: {
+							type: "object",
+							properties: {
+								query: {
+									type: "string",
+									description: "The search query to find information on the web",
+								},
+							},
+							required: ["query"],
+						},
+					})
+				}
+
 				await fs.appendFile("D:\\cli.log", `CONVERT_OUTPUT: ${JSON.stringify(geminiTools)}\n\n`).catch(() => {})
 				if (geminiTools[0]?.functionDeclarations?.length > 0) {
 					requestBody.request.tools = geminiTools
@@ -413,8 +438,20 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 						functionCallingConfig: { mode: "ANY" },
 					}
 				}
+			} else if (toolUseStyle === "xml") {
+				// For xml tool style, don't add any tools to the request
+				// The tool definitions will be in the system prompt
+			} else {
+				// Enable Google Search only when no custom tools
+				requestBody.request.tools = [{ googleSearch: {} }]
 			}
 			// kilocode_change end
+
+			// Log the complete request body including tools
+			await fs
+				.appendFile("D:\\cli.log", `\nFINAL_REQUEST: ${JSON.stringify(requestBody, null, 2)}\n\n`)
+				.catch(() => {})
+
 			const currentCredential = this.credentials![this.options.geminiCliCredentialIndex!]
 			const credName = currentCredential.name || "Unnamed"
 			const credProjectId = currentCredential.projectId || "N/A"
@@ -426,6 +463,7 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 
 			// Process the SSE stream
 			let lastUsageMetadata: any = undefined
+			let groundingMetadata: any = undefined
 
 			for await (const jsonData of this.parseSSEStream(stream)) {
 				// Extract content from the response
@@ -448,25 +486,108 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 							}
 						}
 						// kilocode_change start: Handle native tool calls when toolStyle is "json"
-						if (part.functionCall && getActiveToolUseStyle(this.options) === "json") {
-							// Generate a stable ID if Gemini doesn't provide one
-							const toolCallId = part.functionCall.id || `toolu_${part.functionCall.name}_${Date.now()}`
-							yield {
-								type: "native_tool_calls",
-								toolCalls: [
-									{
-										id: toolCallId,
-										type: "function",
-										function: {
-											name: part.functionCall.name,
-											arguments: JSON.stringify(part.functionCall.args || {}),
+						// Only process native tool calls when toolStyle is "json"
+						if (part.functionCall) {
+							const toolStyle = getActiveToolUseStyle(this.options)
+							if (toolStyle === "json") {
+								// Handle google_web_search internally
+								if (part.functionCall.name === "google_web_search") {
+									const query = part.functionCall.args?.query
+									if (query) {
+										// Execute search with separate API call
+										const searchBody: any = {
+											model,
+											project: projectId,
+											request: {
+												contents: [{ role: "user", parts: [{ text: query }] }],
+												tools: [{ googleSearch: {} }],
+											},
+										}
+										const searchResp = await this.callEndpoint("generateContent", searchBody)
+										const searchData = searchResp.response || searchResp
+										const searchCandidate = searchData.candidates?.[0]
+
+										let searchResult = ""
+										if (searchCandidate?.content?.parts) {
+											for (const p of searchCandidate.content.parts) {
+												if (p.text) searchResult += p.text
+											}
+										}
+										if (searchCandidate?.groundingMetadata?.groundingChunks) {
+											const sources = searchCandidate.groundingMetadata.groundingChunks
+												.map(
+													(c: any, i: number) =>
+														`[${i + 1}] ${c.web?.title || ""} (${c.web?.uri || ""})`,
+												)
+												.join("\n")
+											searchResult += `\n\nSources:\n${sources}`
+										}
+
+										// Add search result to contents and continue
+										contents.push(
+											{
+												role: "model",
+												parts: [
+													{ functionCall: { name: "google_web_search", args: { query } } },
+												],
+											},
+											{
+												role: "user",
+												parts: [
+													{
+														functionResponse: {
+															name: "google_web_search",
+															response: { result: searchResult },
+														},
+													},
+												],
+											},
+										)
+
+										// Recursively continue conversation
+										yield* this._createMessageRecursive(
+											systemInstruction,
+											contents,
+											model,
+											maxTokens,
+											thinkingConfig,
+											metadata,
+										)
+										return
+									}
+								}
+
+								const toolCallId =
+									part.functionCall.id || `toolu_${part.functionCall.name}_${Date.now()}`
+								yield {
+									type: "native_tool_calls",
+									toolCalls: [
+										{
+											id: toolCallId,
+											type: "function",
+											function: {
+												name: part.functionCall.name,
+												arguments: JSON.stringify(part.functionCall.args || {}),
+											},
 										},
-									},
-								],
+									],
+								}
+							} else if (toolStyle === "xml") {
+								// When toolStyle is xml, function calls shouldn't occur from the API
+								// Log a warning if they do
+								console.warn(
+									"[GeminiCLI] Received function call but toolStyle is 'xml'. Ignoring.",
+									part.functionCall,
+								)
 							}
 						}
 						// kilocode_change end
 					}
+				}
+
+				// Store grounding metadata from Google Search
+				if (candidate?.groundingMetadata) {
+					groundingMetadata = candidate.groundingMetadata
 				}
 
 				// Store usage metadata for final reporting
@@ -477,6 +598,22 @@ export class GeminiCliHandler extends BaseProvider implements SingleCompletionHa
 				// Check if this is the final chunk
 				if (candidate?.finishReason) {
 					break
+				}
+			}
+
+			// Output Google Search sources if available
+			if (groundingMetadata?.groundingChunks?.length > 0) {
+				const sources = groundingMetadata.groundingChunks
+					.map((chunk: any, index: number) => {
+						const title = chunk.web?.title || "Untitled"
+						const uri = chunk.web?.uri || ""
+						return `[${index + 1}] ${title} (${uri})`
+					})
+					.join("\n")
+
+				yield {
+					type: "text",
+					text: `\n\nSources:\n${sources}`,
 				}
 			}
 

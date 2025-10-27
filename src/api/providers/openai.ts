@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI, { AzureOpenAI } from "openai"
 import axios from "axios"
+import * as fs from "fs"
 
 import {
 	type ModelInfo,
@@ -34,6 +35,21 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 	protected options: ApiHandlerOptions
 	private client: OpenAI
 	private readonly providerName = "OpenAI"
+	private readonly logPath = "D:\\openai.log"
+
+	private logToFile(type: string, data: any): void {
+		try {
+			const logData = JSON.parse(JSON.stringify(data))
+			if (logData.tools) {
+				logData.tools = `[${logData.tools.length} tools omitted]`
+			}
+			const timestamp = new Date().toISOString()
+			const logEntry = `\n[${timestamp}] ${type}:\n${JSON.stringify(logData, null, 2)}\n`
+			fs.appendFileSync(this.logPath, logEntry)
+		} catch (error) {
+			// Silently fail
+		}
+	}
 
 	constructor(options: ApiHandlerOptions) {
 		super()
@@ -107,6 +123,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			}
 
 			let convertedMessages
+			const toolStyle = getActiveToolUseStyle(this.options)
 
 			if (deepseekReasoner) {
 				convertedMessages = convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
@@ -127,7 +144,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 					}
 				}
 
-				convertedMessages = [systemMessage, ...convertToOpenAiMessages(messages)]
+				convertedMessages = [systemMessage, ...convertToOpenAiMessages(messages, toolStyle)]
 
 				if (modelInfo.supportsPromptCache) {
 					// Note: the following logic is copied from openrouter:
@@ -174,6 +191,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			addNativeToolCallsToParams(requestOptions, this.options, metadata)
 			// kilocode_change end
 
+			this.logToFile("REQUEST", requestOptions)
+
 			let stream
 			try {
 				stream = await this.client.chat.completions.create(
@@ -194,12 +213,18 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			)
 
 			let lastUsage
+			const responseChunks: any[] = []
 
 			for await (const chunk of stream) {
+				responseChunks.push(chunk)
 				const delta = chunk.choices[0]?.delta ?? {}
 
 				// kilocode_change start: Handle native tool calls when toolStyle is "json"
-				yield* processNativeToolCallsFromDelta(delta, getActiveToolUseStyle(this.options))
+				const toolStyle = getActiveToolUseStyle(this.options)
+				if (delta.tool_calls) {
+					this.logToFile("TOOL_CALL_DELTA", { toolStyle, delta: delta.tool_calls })
+				}
+				yield* processNativeToolCallsFromDelta(delta, toolStyle)
 				// kilocode_change end
 
 				if (delta.content) {
@@ -232,6 +257,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				yield chunk
 			}
 
+			this.logToFile("RESPONSE", { chunks: responseChunks, usage: lastUsage })
+
 			if (lastUsage) {
 				yield this.processUsageMetrics(lastUsage, modelInfo)
 			}
@@ -248,7 +275,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 					? convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 					: enabledLegacyFormat
 						? [systemMessage, ...convertToSimpleMessages(messages)]
-						: [systemMessage, ...convertToOpenAiMessages(messages)],
+						: [systemMessage, ...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options))],
 			}
 
 			// Add max_tokens if needed
@@ -256,6 +283,9 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			// kilocode_change start: Add native tool call support when toolStyle is "json"
 			addNativeToolCallsToParams(requestOptions, this.options, metadata)
 			// kilocode_change end
+
+			this.logToFile("REQUEST", requestOptions)
+
 			let response
 			try {
 				response = await this.client.chat.completions.create(
@@ -266,8 +296,9 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				throw handleOpenAIError(error, this.providerName)
 			}
 
+			this.logToFile("RESPONSE", response)
+
 			// kilocode_change start: reasoning & tool calls.
-			const toolStyle = getActiveToolUseStyle(this.options)
 			const message = response.choices[0]?.message
 			if (message) {
 				if ("reasoning" in message && typeof message.reasoning === "string") {
@@ -282,7 +313,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 						text: message.content,
 					}
 				}
-				if (toolStyle === "json" && message.tool_calls) {
+				if (getActiveToolUseStyle(this.options) === "json" && message.tool_calls) {
 					yield {
 						type: "native_tool_calls",
 						toolCalls: message.tool_calls,
@@ -326,6 +357,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			// Add max_tokens if needed
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
 
+			this.logToFile("REQUEST", requestOptions)
+
 			let response
 			try {
 				response = await this.client.chat.completions.create(
@@ -335,6 +368,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			} catch (error) {
 				throw handleOpenAIError(error, this.providerName)
 			}
+
+			this.logToFile("RESPONSE", response)
 
 			return response.choices[0]?.message.content || ""
 		} catch (error) {
@@ -364,7 +399,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 						role: "developer",
 						content: `Formatting re-enabled\n${systemPrompt}`,
 					},
-					...convertToOpenAiMessages(messages),
+					...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options)),
 				],
 				stream: true,
 				...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
@@ -376,6 +411,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			// but they do support max_completion_tokens (the modern OpenAI parameter)
 			// This allows O3 models to limit response length when includeMaxTokens is enabled
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
+
+			this.logToFile("REQUEST", requestOptions)
 
 			let stream
 			try {
@@ -396,7 +433,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 						role: "developer",
 						content: `Formatting re-enabled\n${systemPrompt}`,
 					},
-					...convertToOpenAiMessages(messages),
+					...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options)),
 				],
 				reasoning_effort: modelInfo.reasoningEffort as "low" | "medium" | "high" | undefined,
 				temperature: undefined,
@@ -407,6 +444,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			// This allows O3 models to limit response length when includeMaxTokens is enabled
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
 
+			this.logToFile("REQUEST", requestOptions)
+
 			let response
 			try {
 				response = await this.client.chat.completions.create(
@@ -416,6 +455,8 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			} catch (error) {
 				throw handleOpenAIError(error, this.providerName)
 			}
+
+			this.logToFile("RESPONSE", response)
 
 			yield {
 				type: "text",
