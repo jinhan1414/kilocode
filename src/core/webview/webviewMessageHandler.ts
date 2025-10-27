@@ -1030,7 +1030,7 @@ export const webviewMessageHandler = async (
 				})
 
 				if (Object.keys(openAiModels).length > 0) {
-					provider.postMessageToWebview({ type: "openAiModels", openAiModels: openAiModels })
+					provider.postMessageToWebview({ type: "openAiModels", openAiModels: Object.keys(openAiModels) })
 				}
 			} catch (error) {
 				// Silently fail - user hasn't configured OpenAI yet
