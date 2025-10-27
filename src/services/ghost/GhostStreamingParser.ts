@@ -1,5 +1,5 @@
 import * as vscode from "vscode"
-import { structuredPatch } from "diff"
+import { ParsedDiff, structuredPatch } from "diff"
 import { GhostSuggestionContext, GhostSuggestionEditOperationType } from "./types"
 import { GhostSuggestionsState } from "./GhostSuggestions"
 import { CURSOR_MARKER } from "./ghostConstants"
@@ -28,7 +28,7 @@ function removeCursorMarker(content: string): string {
 /**
  * Conservative XML sanitization - only fixes the specific case from user feedback
  */
-function sanitizeXMLConservative(buffer: string): string {
+export function sanitizeXMLConservative(buffer: string): string {
 	let sanitized = buffer
 
 	// Fix malformed CDATA sections first - this is the main bug from user logs
@@ -71,33 +71,17 @@ function sanitizeXMLConservative(buffer: string): string {
 /**
  * Check if the response appears to be complete
  */
-function isResponseComplete(buffer: string, completedChangesCount: number): boolean {
-	// Simple heuristic: if the buffer doesn't end with an incomplete tag,
-	// consider it complete
-	const trimmedBuffer = buffer.trim()
+function isResponseComplete(buffer: string): boolean {
+	const incompleteChangeMatch = /<change(?:\s[^>]*)?>(?:(?!<\/change>)[\s\S])*$/i.test(buffer)
+	const incompleteSearchMatch = /<search(?:\s[^>]*)?>(?:(?!<\/search>)[\s\S])*$/i.test(buffer)
+	const incompleteReplaceMatch = /<replace(?:\s[^>]*)?>(?:(?!<\/replace>)[\s\S])*$/i.test(buffer)
+	const incompleteCDataMatch = /<!\[CDATA\[(?:(?!\]\]>)[\s\S])*$/i.test(buffer)
 
-	// If the buffer is empty or only whitespace, consider it complete
-	if (trimmedBuffer.length === 0) {
-		return true
-	}
-
-	const incompleteChangeMatch = /<change(?:\s[^>]*)?>(?:(?!<\/change>)[\s\S])*$/i.test(trimmedBuffer)
-	const incompleteSearchMatch = /<search(?:\s[^>]*)?>(?:(?!<\/search>)[\s\S])*$/i.test(trimmedBuffer)
-	const incompleteReplaceMatch = /<replace(?:\s[^>]*)?>(?:(?!<\/replace>)[\s\S])*$/i.test(trimmedBuffer)
-	const incompleteCDataMatch = /<!\[CDATA\[(?:(?!\]\]>)[\s\S])*$/i.test(trimmedBuffer)
-
-	// If we have incomplete tags, the response is not complete
-	if (incompleteChangeMatch || incompleteSearchMatch || incompleteReplaceMatch || incompleteCDataMatch) {
-		return false
-	}
-
-	// If we have at least one complete change and no incomplete tags, likely complete
-	return completedChangesCount > 0
+	return !(incompleteChangeMatch || incompleteSearchMatch || incompleteReplaceMatch || incompleteCDataMatch)
 }
 
 /**
  * Find the best match for search content in the document, handling whitespace differences and cursor markers
- * This is a simplified version of the method from GhostStrategy
  */
 export function findBestMatch(content: string, searchPattern: string): number {
 	// Validate inputs
@@ -105,95 +89,114 @@ export function findBestMatch(content: string, searchPattern: string): number {
 		return -1
 	}
 
-	// First try exact match
+	// Strategy 1: Try exact match (fastest path)
 	let index = content.indexOf(searchPattern)
 	if (index !== -1) {
 		return index
 	}
 
-	// Handle the case where search pattern has trailing whitespace that might not match exactly
-	if (searchPattern.endsWith("\n")) {
-		// Try matching without the trailing newline, then check if we can find it in context
-		const searchWithoutTrailingNewline = searchPattern.slice(0, -1)
-		index = content.indexOf(searchWithoutTrailingNewline)
-		if (index !== -1) {
-			// Check if the character after the match is a newline or end of string
-			const afterMatchIndex = index + searchWithoutTrailingNewline.length
-			if (afterMatchIndex >= content.length || content[afterMatchIndex] === "\n") {
-				return index
+	// Strategy 2: Fuzzy match with whitespace normalization
+	const contentLen = content.length
+	const patternLen = searchPattern.length
+
+	// Try starting the match at each position in content
+	for (let contentStart = 0; contentStart < contentLen; contentStart++) {
+		let contentPos = contentStart
+		let patternPos = 0
+
+		// Try to match the entire pattern starting from contentStart
+		while (patternPos < patternLen && contentPos < contentLen) {
+			const contentChar = content[contentPos]
+			const patternChar = searchPattern[patternPos]
+
+			const contentIsNewline = isNewline(contentChar)
+			const patternIsNewline = isNewline(patternChar)
+
+			// Special case: pattern has newline but content has non-newline whitespace
+			// Skip trailing whitespace in content before newline
+			if (patternIsNewline && isNonNewlineWhitespace(contentChar)) {
+				const savedContentPos = contentPos
+				contentPos = skipChars(content, contentPos, isNonNewlineWhitespace)
+
+				if (contentPos < contentLen && isNewline(content[contentPos])) {
+					continue
+				}
+
+				contentPos = savedContentPos
+				break
+			}
+
+			if (contentIsNewline !== patternIsNewline) {
+				break
+			}
+
+			if (contentIsNewline && patternIsNewline) {
+				contentPos = skipChars(content, contentPos, isNewline)
+				patternPos = skipChars(searchPattern, patternPos, isNewline)
+				continue
+			}
+
+			const contentIsWhitespace = isNonNewlineWhitespace(contentChar)
+			const patternIsWhitespace = isNonNewlineWhitespace(patternChar)
+
+			if (contentIsWhitespace && patternIsWhitespace) {
+				contentPos = skipChars(content, contentPos, isNonNewlineWhitespace)
+				patternPos = skipChars(searchPattern, patternPos, isNonNewlineWhitespace)
+				continue
+			}
+
+			if (contentChar === patternChar) {
+				contentPos++
+				patternPos++
+				continue
+			}
+
+			// Characters don't match and can't be normalized - this starting position fails
+			break
+		}
+
+		// Check if we matched the entire pattern, or if we only have trailing whitespace left in pattern
+		if (patternPos === patternLen) {
+			return contentStart
+		}
+
+		// Allow trailing whitespace/newlines in the pattern
+		if (patternPos < patternLen) {
+			patternPos = skipChars(searchPattern, patternPos, (c) => isNewline(c) || isNonNewlineWhitespace(c))
+			if (patternPos === patternLen) {
+				return contentStart
 			}
 		}
-	}
 
-	// Normalize whitespace for both content and search pattern
-	const normalizeWhitespace = (text: string): string => {
-		return text
-			.replace(/\r\n/g, "\n") // Normalize line endings
-			.replace(/\r/g, "\n") // Handle old Mac line endings
-			.replace(/\t/g, "    ") // Convert tabs to spaces
-			.replace(/[ \t]+$/gm, "") // Remove trailing whitespace from each line
-	}
-
-	const normalizedContent = normalizeWhitespace(content)
-	const normalizedSearch = normalizeWhitespace(searchPattern)
-
-	// Try normalized match
-	index = normalizedContent.indexOf(normalizedSearch)
-	if (index !== -1) {
-		// Map back to original content position
-		return mapNormalizedToOriginalIndex(content, normalizedContent, index)
-	}
-
-	// Try trimmed search (remove leading/trailing whitespace)
-	const trimmedSearch = searchPattern.trim()
-	if (trimmedSearch !== searchPattern) {
-		index = content.indexOf(trimmedSearch)
-		if (index !== -1) {
-			return index
-		}
+		break
 	}
 
 	return -1 // No match found
 }
 
 /**
- * Map an index from normalized content back to the original content
+ * Check if a character is a newline (\n, \r, or part of \r\n)
  */
-function mapNormalizedToOriginalIndex(
-	originalContent: string,
-	normalizedContent: string,
-	normalizedIndex: number,
-): number {
-	let originalIndex = 0
-	let normalizedPos = 0
+function isNewline(char: string): boolean {
+	return char === "\n" || char === "\r"
+}
 
-	while (normalizedPos < normalizedIndex && originalIndex < originalContent.length) {
-		const originalChar = originalContent[originalIndex]
-		const normalizedChar = normalizedContent[normalizedPos]
+/**
+ * Check if a character is non-newline whitespace (space or tab)
+ */
+function isNonNewlineWhitespace(char: string): boolean {
+	return char === " " || char === "\t"
+}
 
-		if (originalChar === normalizedChar) {
-			originalIndex++
-			normalizedPos++
-		} else {
-			// Handle whitespace normalization differences
-			if (/\s/.test(originalChar)) {
-				originalIndex++
-				// Skip ahead in original until we find non-whitespace or match normalized
-				while (originalIndex < originalContent.length && /\s/.test(originalContent[originalIndex])) {
-					originalIndex++
-				}
-				if (normalizedPos < normalizedContent.length && /\s/.test(normalizedChar)) {
-					normalizedPos++
-				}
-			} else {
-				// Characters don't match, this shouldn't happen with proper normalization
-				originalIndex++
-				normalizedPos++
-			}
-		}
+/**
+ * Skip consecutive characters that match the predicate and return the next position
+ */
+function skipChars(text: string, startPos: number, predicate: (char: string) => boolean): number {
+	let pos = startPos
+	while (pos < text.length && predicate(text[pos])) {
+		pos++
 	}
-
-	return originalIndex
+	return pos
 }
 
 /**
@@ -201,11 +204,7 @@ function mapNormalizedToOriginalIndex(
  * and emit suggestions as soon as complete <change> blocks are available
  */
 export class GhostStreamingParser {
-	public buffer: string = ""
-	private completedChanges: ParsedChange[] = []
-	private lastProcessedIndex: number = 0
 	private context: GhostSuggestionContext | null = null
-	private streamFinished: boolean = false
 
 	constructor() {}
 
@@ -214,59 +213,61 @@ export class GhostStreamingParser {
 	 */
 	public initialize(context: GhostSuggestionContext): void {
 		this.context = context
-		this.reset()
 	}
 
 	/**
-	 * Reset parser state for a new parsing session
+	 * Sanitize response if needed and return sanitized response with completion status
 	 */
-	public reset(): void {
-		this.buffer = ""
-		this.completedChanges = []
-		this.lastProcessedIndex = 0
-		this.streamFinished = false
-	}
+	private sanitizeResponseIfNeeded(response: string): { sanitizedResponse: string; isComplete: boolean } {
+		let sanitizedResponse = response
+		let isComplete = isResponseComplete(sanitizedResponse)
 
-	/**
-	 * Process a new chunk of text and return any newly completed suggestions
-	 */
-	public processChunk(chunk: string): StreamingParseResult {
-		if (!this.context) {
-			throw new Error("Parser not initialized. Call initialize() first.")
+		if (!isComplete) {
+			sanitizedResponse = sanitizeXMLConservative(sanitizedResponse)
+			isComplete = isResponseComplete(sanitizedResponse) // Re-check completion after sanitization
 		}
 
-		// Add chunk to buffer
-		this.buffer += chunk
+		return { sanitizedResponse, isComplete }
+	}
 
-		// Extract any newly completed changes from the current buffer
-		const newChanges = this.extractCompletedChanges()
+	/**
+	 * Mark the stream as finished and process any remaining content with sanitization
+	 */
+	public parseResponse(fullResponse: string, prefix: string, suffix: string): StreamingParseResult {
+		const { sanitizedResponse, isComplete } = this.sanitizeResponseIfNeeded(fullResponse)
 
+		const newChanges = this.extractCompletedChanges(sanitizedResponse)
 		let hasNewSuggestions = newChanges.length > 0
 
-		// Add new changes to our completed list
-		this.completedChanges.push(...newChanges)
-
-		// Check if the response appears complete
-		let isComplete = isResponseComplete(this.buffer, this.completedChanges.length)
-
-		// Apply very conservative sanitization only when the stream is finished
-		// and we still have no completed changes but have content in the buffer
-		if (this.completedChanges.length === 0 && this.buffer.trim().length > 0 && this.streamFinished) {
-			const sanitizedBuffer = sanitizeXMLConservative(this.buffer)
-			if (sanitizedBuffer !== this.buffer) {
-				// Re-process with sanitized buffer
-				this.buffer = sanitizedBuffer
-				const sanitizedChanges = this.extractCompletedChanges()
-				if (sanitizedChanges.length > 0) {
-					this.completedChanges.push(...sanitizedChanges)
-					hasNewSuggestions = true
-					isComplete = isResponseComplete(this.buffer, this.completedChanges.length) // Re-check completion after sanitization
-				}
-			}
-		}
-
 		// Generate suggestions from all completed changes
-		const suggestions = this.generateSuggestions(this.completedChanges)
+		const document = this.context!.document
+		const range = this.context!.range
+
+		const modifiedContent = this.generateModifiedContent(newChanges, document, range)
+		const relativePath = vscode.workspace.asRelativePath(document.uri, false)
+		const patch = structuredPatch(
+			relativePath,
+			relativePath,
+			document.getText(),
+			modifiedContent ?? document.getText(),
+			"",
+			"",
+		)
+
+		const modifiedContent_has_prefix_and_suffix =
+			modifiedContent?.startsWith(prefix) && modifiedContent.endsWith(suffix)
+
+		const suggestions = this.convertToSuggestions(patch, document)
+
+		if (modifiedContent_has_prefix_and_suffix && modifiedContent) {
+			// Mark as FIM option
+			const middle = modifiedContent.slice(prefix.length, modifiedContent.length - suffix.length)
+			suggestions.setFillInAtCursor({
+				text: middle,
+				prefix,
+				suffix,
+			})
+		}
 
 		return {
 			suggestions,
@@ -276,21 +277,10 @@ export class GhostStreamingParser {
 	}
 
 	/**
-	 * Mark the stream as finished and process any remaining content with sanitization
-	 */
-	public finishStream(): StreamingParseResult {
-		this.streamFinished = true
-		return this.processChunk("")
-	}
-
-	/**
 	 * Extract completed <change> blocks from the buffer
 	 */
-	private extractCompletedChanges(): ParsedChange[] {
+	private extractCompletedChanges(searchText: string): ParsedChange[] {
 		const newChanges: ParsedChange[] = []
-
-		// Look for complete <change> blocks starting from where we left off
-		const searchText = this.buffer.substring(this.lastProcessedIndex)
 
 		// Updated regex to handle both single-line XML format and traditional format with whitespace
 		const changeRegex =
@@ -315,25 +305,18 @@ export class GhostStreamingParser {
 			lastMatchEnd = match.index + match[0].length
 		}
 
-		// Update our processed index to avoid re-processing the same content
-		if (lastMatchEnd > 0) {
-			this.lastProcessedIndex += lastMatchEnd
-		}
-
 		return newChanges
 	}
 
-	/**
-	 * Generate suggestions from completed changes
-	 */
-	private generateSuggestions(changes: ParsedChange[]): GhostSuggestionsState {
-		const suggestions = new GhostSuggestionsState()
-
-		if (!this.context?.document || changes.length === 0) {
-			return suggestions
+	private generateModifiedContent(
+		changes: ParsedChange[],
+		document: vscode.TextDocument,
+		range: vscode.Range | undefined,
+	): string | undefined {
+		if (changes.length === 0) {
+			return undefined
 		}
 
-		const document = this.context.document
 		const currentContent = document.getText()
 
 		// Add cursor marker to document content if it's not already there
@@ -341,9 +324,9 @@ export class GhostStreamingParser {
 		let modifiedContent = currentContent
 		const needsCursorMarker =
 			changes.some((change) => change.search.includes(CURSOR_MARKER)) && !currentContent.includes(CURSOR_MARKER)
-		if (needsCursorMarker && this.context.range) {
+		if (needsCursorMarker && range) {
 			// Add cursor marker at the specified range position
-			const cursorOffset = document.offsetAt(this.context.range.start)
+			const cursorOffset = document.offsetAt(range.start)
 			modifiedContent =
 				currentContent.substring(0, cursorOffset) + CURSOR_MARKER + currentContent.substring(cursorOffset)
 		}
@@ -431,21 +414,20 @@ export class GhostStreamingParser {
 			modifiedContent = removeCursorMarker(modifiedContent)
 		}
 
-		// Generate diff between original and modified content
-		const relativePath = vscode.workspace.asRelativePath(document.uri, false)
-		const patch = structuredPatch(relativePath, relativePath, currentContent, modifiedContent, "", "")
+		return modifiedContent
+	}
 
-		// Create a suggestion file
+	private convertToSuggestions(patch: ParsedDiff, document: vscode.TextDocument): GhostSuggestionsState {
+		const suggestions = new GhostSuggestionsState()
+
 		const suggestionFile = suggestions.addFile(document.uri)
 
-		// Process each hunk in the patch
 		for (const hunk of patch.hunks) {
 			let currentOldLineNumber = hunk.oldStart
 			let currentNewLineNumber = hunk.newStart
 
-			// Iterate over each line within the hunk
 			for (const line of hunk.lines) {
-				const operationType = line.charAt(0) as GhostSuggestionEditOperationType
+				const operationType = line.charAt(0)
 				const content = line.substring(1)
 
 				switch (operationType) {
@@ -487,12 +469,5 @@ export class GhostStreamingParser {
 
 		suggestions.sortGroups()
 		return suggestions
-	}
-
-	/**
-	 * Get completed changes (for debugging)
-	 */
-	public getCompletedChanges(): ParsedChange[] {
-		return [...this.completedChanges]
 	}
 }

@@ -4,7 +4,6 @@ out
 out-*
 node_modules
 package-lock.json
-pnpm-lock.yaml
 coverage/
 mock/
 .DS_Store
@@ -67,4 +66,3 @@ qdrant_storage/
 # allow multiple local clones with different workspaces with different colors
 # to make it easier to work on features in parallel
 *.code-workspace
-native_tools_implementation_plan.md

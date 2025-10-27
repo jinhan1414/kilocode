@@ -7,10 +7,11 @@ import { useSetAtom, useAtomValue } from "jotai"
 import { useCallback } from "react"
 import type { CommandContext } from "../../commands/core/types.js"
 import type { CliMessage } from "../../types/cli.js"
-import { addMessageAtom, clearMessagesAtom, replaceMessagesAtom } from "../atoms/ui.js"
+import { addMessageAtom, clearMessagesAtom, replaceMessagesAtom, setMessageCutoffTimestampAtom } from "../atoms/ui.js"
 import { setModeAtom, providerAtom, updateProviderAtom } from "../atoms/config.js"
 import { routerModelsAtom, extensionStateAtom } from "../atoms/extension.js"
 import { requestRouterModelsAtom } from "../atoms/actions.js"
+import { profileDataAtom, balanceDataAtom, profileLoadingAtom, balanceLoadingAtom } from "../atoms/profile.js"
 import { useWebviewMessage } from "./useWebviewMessage.js"
 import { getModelIdKey } from "../../constants/providers/models.js"
 
@@ -58,6 +59,7 @@ export function useCommandContext(): UseCommandContextReturn {
 	const setMode = useSetAtom(setModeAtom)
 	const updateProvider = useSetAtom(updateProviderAtom)
 	const refreshRouterModels = useSetAtom(requestRouterModelsAtom)
+	const setMessageCutoffTimestamp = useSetAtom(setMessageCutoffTimestampAtom)
 	const { sendMessage, clearTask } = useWebviewMessage()
 
 	// Get read-only state
@@ -65,6 +67,12 @@ export function useCommandContext(): UseCommandContextReturn {
 	const currentProvider = useAtomValue(providerAtom)
 	const extensionState = useAtomValue(extensionStateAtom)
 	const kilocodeDefaultModel = extensionState?.kilocodeDefaultModel || ""
+
+	// Get profile state
+	const profileData = useAtomValue(profileDataAtom)
+	const balanceData = useAtomValue(balanceDataAtom)
+	const profileLoading = useAtomValue(profileLoadingAtom)
+	const balanceLoading = useAtomValue(balanceLoadingAtom)
 
 	// Create the factory function
 	const createContext = useCallback<CommandContextFactory>(
@@ -85,6 +93,9 @@ export function useCommandContext(): UseCommandContextReturn {
 				replaceMessages: (messages: CliMessage[]) => {
 					replaceMessages(messages)
 				},
+				setMessageCutoffTimestamp: (timestamp: number) => {
+					setMessageCutoffTimestamp(timestamp)
+				},
 				clearTask: async () => {
 					await clearTask()
 				},
@@ -94,7 +105,7 @@ export function useCommandContext(): UseCommandContextReturn {
 				exit: () => {
 					onExit()
 				},
-				// New model-related context
+				// Model-related context
 				routerModels,
 				currentProvider: currentProvider || null,
 				kilocodeDefaultModel,
@@ -111,6 +122,15 @@ export function useCommandContext(): UseCommandContextReturn {
 				refreshRouterModels: async () => {
 					await refreshRouterModels()
 				},
+				// Provider update function for teams command
+				updateProvider: async (providerId: string, updates: any) => {
+					await updateProvider(providerId, updates)
+				},
+				// Profile data context
+				profileData,
+				balanceData,
+				profileLoading,
+				balanceLoading,
 			}
 		},
 		[
@@ -124,6 +144,12 @@ export function useCommandContext(): UseCommandContextReturn {
 			kilocodeDefaultModel,
 			updateProvider,
 			refreshRouterModels,
+			replaceMessages,
+			setMessageCutoffTimestamp,
+			profileData,
+			balanceData,
+			profileLoading,
+			balanceLoading,
 		],
 	)
 

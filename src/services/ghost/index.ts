@@ -29,26 +29,6 @@ export const registerGhostProvider = (context: vscode.ExtensionContext, cline: C
 		}),
 	)
 	context.subscriptions.push(
-		vscode.commands.registerCommand("kilo-code.ghost.applyAllSuggestions", async () => {
-			ghost.applyAllSuggestions()
-		}),
-	)
-	context.subscriptions.push(
-		vscode.commands.registerCommand("kilo-code.ghost.applyCurrentSuggestions", async () => {
-			ghost.applySelectedSuggestions()
-		}),
-	)
-	context.subscriptions.push(
-		vscode.commands.registerCommand("kilo-code.ghost.goToNextSuggestion", async () => {
-			await ghost.selectNextSuggestion()
-		}),
-	)
-	context.subscriptions.push(
-		vscode.commands.registerCommand("kilo-code.ghost.goToPreviousSuggestion", async () => {
-			await ghost.selectPreviousSuggestion()
-		}),
-	)
-	context.subscriptions.push(
 		vscode.commands.registerCommand("kilo-code.ghost.showIncompatibilityExtensionPopup", async () => {
 			await ghost.showIncompatibilityExtensionPopup()
 		}),
@@ -76,6 +56,8 @@ export const registerGhostProvider = (context: vscode.ExtensionContext, cline: C
 		}),
 	)
 
-	// Register GhostProvider Code Lens
-	context.subscriptions.push(vscode.languages.registerCodeLensProvider("*", ghost.codeLensProvider))
+	// Register GhostProvider Inline Completion Provider
+	context.subscriptions.push(
+		vscode.languages.registerInlineCompletionItemProvider("*", ghost.inlineCompletionProvider),
+	)
 }

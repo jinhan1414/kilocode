@@ -81,7 +81,7 @@ const sidebars: SidebarsConfig = {
 						},
 					],
 				},
-				"basic-usage/adding-tokens",
+				"basic-usage/adding-credits",
 			],
 		},
 		{
@@ -105,7 +105,6 @@ const sidebars: SidebarsConfig = {
 				"seats/dashboard",
 				"seats/analytics",
 				"seats/team-management",
-				"seats/roles-permissions",
 				"seats/custom-modes",
 				"seats/billing",
 				{
@@ -202,6 +201,7 @@ const sidebars: SidebarsConfig = {
 				"features/tools/write-to-file",
 			],
 		},
+		"cli",
 	],
 }
 

@@ -17,10 +17,11 @@ export const nativeFunctionCallingProviders = [
 	"deepinfra",
 	"xai",
 	"zai",
-	"gemini-cli",
+	"synthetic",
+	"human-relay",
 ] satisfies ProviderName[] as ProviderName[]
 
-const modelsDefaultingToNativeFunctionCalls = ["anthropic/claude-haiku-4.5"]
+const modelsDefaultingToJsonKeywords = ["claude-haiku-4.5", "claude-haiku-4-5"]
 
 export function getActiveToolUseStyle(settings: ProviderSettings | undefined): ToolUseStyle {
 	if (
@@ -32,8 +33,8 @@ export function getActiveToolUseStyle(settings: ProviderSettings | undefined): T
 	if (settings.toolStyle) {
 		return settings.toolStyle
 	}
-	const model = getModelId(settings)
-	if (model && modelsDefaultingToNativeFunctionCalls.includes(model)) {
+	const model = getModelId(settings)?.toLowerCase()
+	if (model && modelsDefaultingToJsonKeywords.some((keyword) => model.includes(keyword))) {
 		return "json"
 	}
 	return "xml"
