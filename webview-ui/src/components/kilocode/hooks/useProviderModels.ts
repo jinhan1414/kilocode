@@ -166,9 +166,8 @@ export const getModelsByProvider = ({
 			}
 		}
 		case "openai": {
-			// TODO(catrielmuller): Support the fetch here
 			return {
-				models: {},
+				models: routerModels.openai,
 				defaultModel: "",
 			}
 		}
@@ -306,6 +305,9 @@ export const useProviderModels = (apiConfiguration?: ProviderSettings) => {
 		chutesApiKey: apiConfiguration?.chutesApiKey,
 		geminiApiKey: apiConfiguration?.geminiApiKey,
 		googleGeminiBaseUrl: apiConfiguration?.googleGeminiBaseUrl,
+		openAiApiKey: apiConfiguration?.openAiApiKey, // kilocode_change: 添加 openai 参数以支持动态模型刷新
+		openAiBaseUrl: apiConfiguration?.openAiBaseUrl, // kilocode_change
+		openAiHeaders: apiConfiguration?.openAiHeaders, // kilocode_change
 		// kilocode_change end
 	})
 

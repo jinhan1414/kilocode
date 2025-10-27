@@ -31,6 +31,9 @@ import { getGeminiModels } from "./gemini"
 
 import { getDeepInfraModels } from "./deepinfra"
 import { getHuggingFaceModels } from "./huggingface"
+// kilocode_change start
+import { getOpenAiModelsRecord } from "../openai"
+// kilocode_change end
 
 const memoryCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 5 * 60 })
 
@@ -136,6 +139,9 @@ export const getModels = async (options: GetModelsOptions): Promise<ModelRecord>
 			// kilocode_change start
 			case "ovhcloud":
 				models = await getOvhCloudAiEndpointsModels()
+				break
+			case "openai":
+				models = await getOpenAiModelsRecord(options.baseUrl, options.apiKey, options.openAiHeaders)
 				break
 			// kilocode_change end
 			default: {

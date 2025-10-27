@@ -558,3 +558,23 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 		return []
 	}
 }
+
+// kilocode_change start: Convert OpenAI models list to ModelRecord format
+export async function getOpenAiModelsRecord(
+	baseUrl?: string,
+	apiKey?: string,
+	openAiHeaders?: Record<string, string>,
+): Promise<Record<string, ModelInfo>> {
+	const modelIds = await getOpenAiModels(baseUrl, apiKey, openAiHeaders)
+	const modelsRecord: Record<string, ModelInfo> = {}
+
+	for (const modelId of modelIds) {
+		modelsRecord[modelId] = {
+			...openAiModelInfoSaneDefaults,
+			description: modelId,
+		}
+	}
+
+	return modelsRecord
+}
+// kilocode_change end

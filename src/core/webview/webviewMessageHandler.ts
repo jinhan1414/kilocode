@@ -814,6 +814,7 @@ export const webviewMessageHandler = async (
 				ollama: {},
 				lmstudio: {},
 				ovhcloud: {}, // kilocode_change
+				openai: {}, // kilocode_change
 			}
 
 			const safeGetModels = async (options: GetModelsOptions): Promise<ModelRecord> => {
@@ -884,6 +885,17 @@ export const webviewMessageHandler = async (
 						provider: "ovhcloud",
 						apiKey: apiConfiguration.ovhCloudAiEndpointsApiKey,
 						baseUrl: apiConfiguration.ovhCloudAiEndpointsBaseUrl,
+					},
+				},
+				// kilocode_change end
+				// kilocode_change start
+				{
+					key: "openai",
+					options: {
+						provider: "openai",
+						apiKey: apiConfiguration.openAiApiKey,
+						baseUrl: apiConfiguration.openAiBaseUrl,
+						openAiHeaders: apiConfiguration.openAiHeaders,
 					},
 				},
 				// kilocode_change end
@@ -1003,18 +1015,29 @@ export const webviewMessageHandler = async (
 			}
 			break
 		}
-		case "requestOpenAiModels":
-			if (message?.values?.baseUrl && message?.values?.apiKey) {
-				const openAiModels = await getOpenAiModels(
-					message?.values?.baseUrl,
-					message?.values?.apiKey,
-					message?.values?.openAiHeaders,
-				)
+		case "requestOpenAiModels": {
+			// Specific handler for OpenAI models only - similar to Ollama and LM Studio
+			const { apiConfiguration: openAiApiConfig } = await provider.getState()
+			try {
+				// Flush cache first to ensure fresh models
+				await flushModels("openai")
 
-				provider.postMessageToWebview({ type: "openAiModels", openAiModels })
+				const openAiModels = await getModels({
+					provider: "openai",
+					baseUrl: openAiApiConfig.openAiBaseUrl,
+					apiKey: openAiApiConfig.openAiApiKey,
+					openAiHeaders: openAiApiConfig.openAiHeaders,
+				})
+
+				if (Object.keys(openAiModels).length > 0) {
+					provider.postMessageToWebview({ type: "openAiModels", openAiModels: openAiModels })
+				}
+			} catch (error) {
+				// Silently fail - user hasn't configured OpenAI yet
+				console.debug("OpenAI models fetch failed:", error)
 			}
-
 			break
+		}
 		case "requestVsCodeLmModels":
 			const vsCodeLmModels = await getVsCodeLmModels()
 			// TODO: Cache like we do for OpenRouter, etc?

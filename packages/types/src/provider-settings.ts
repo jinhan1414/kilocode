@@ -53,6 +53,7 @@ export const dynamicProviders = [
 	"ovhcloud",
 	"chutes",
 	"gemini",
+	"openai", // kilocode_change: moved from customProviders to support dynamic model list
 	// kilocode_change end
 	"deepinfra",
 	"io-intelligence",
@@ -98,7 +99,7 @@ export const isInternalProvider = (key: string): key is InternalProvider =>
  * Custom providers are completely configurable within Roo Code settings.
  */
 
-export const customProviders = ["openai"] as const
+export const customProviders = [] as const // kilocode_change: moved openai to dynamicProviders
 
 export type CustomProvider = (typeof customProviders)[number]
 
@@ -677,6 +678,7 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	kilocode: "kilocodeModel",
 	"virtual-quota-fallback": "apiModelId",
 	ovhcloud: "ovhCloudAiEndpointsModelId", // kilocode_change
+	openai: "openAiModelId", // kilocode_change
 }
 
 /**
@@ -708,7 +710,7 @@ export const getApiProtocol = (provider: ProviderName | undefined, modelId?: str
  */
 
 export const MODELS_BY_PROVIDER: Record<
-	Exclude<ProviderName, "fake-ai" | "human-relay" | "gemini-cli" | "openai" | "gemini">, // kilocode_change: add gemini
+	Exclude<ProviderName, "fake-ai" | "human-relay" | "gemini-cli" | "gemini">, // kilocode_change: add gemini
 	{ id: ProviderName; label: string; models: string[] }
 > = {
 	anthropic: {
@@ -809,6 +811,7 @@ export const MODELS_BY_PROVIDER: Record<
 	requesty: { id: "requesty", label: "Requesty", models: [] },
 	unbound: { id: "unbound", label: "Unbound", models: [] },
 	ovhcloud: { id: "ovhcloud", label: "OVHcloud AI Endpoints", models: [] }, // kilocode_change
+	openai: { id: "openai", label: "OpenAI Compatible", models: [] }, // kilocode_change
 
 	// kilocode_change start
 	kilocode: { id: "kilocode", label: "Kilocode", models: [] },

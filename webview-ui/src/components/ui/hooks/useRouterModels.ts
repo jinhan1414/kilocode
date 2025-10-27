@@ -46,6 +46,9 @@ type RouterModelsQueryKey = {
 	geminiApiKey?: string
 	googleGeminiBaseUrl?: string
 	chutesApiKey?: string
+	openAiApiKey?: string // kilocode_change: 添加 openAiApiKey 以支持 openai 的动态模型列表刷新
+	openAiBaseUrl?: string // kilocode_change: 添加 openAiBaseUrl 以支持 openai 的动态模型列表刷新
+	openAiHeaders?: Record<string, string> // kilocode_change: 添加 openAiHeaders 以支持 openai 的动态模型列表刷新
 	// Requesty, Unbound, etc should perhaps also be here, but they already have their own hacks for reloading
 }
 
