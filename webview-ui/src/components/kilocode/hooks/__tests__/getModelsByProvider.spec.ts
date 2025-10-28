@@ -15,6 +15,7 @@ describe("getModelsByProvider", () => {
 		}
 
 		const routerModels: RouterModels = {
+			openai: { "test-model": testModel },
 			openrouter: { "test-model": testModel },
 			requesty: { "test-model": testModel },
 			glama: { "test-model": testModel },

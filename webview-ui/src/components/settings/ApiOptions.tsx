@@ -254,6 +254,12 @@ const ApiOptions = ({
 				// Use our custom headers state to build the headers object.
 				const headerObject = convertHeadersToObject(customHeaders)
 
+				console.log("[ApiOptions] Requesting OpenAI models with:", {
+					baseUrl: apiConfiguration?.openAiBaseUrl,
+					apiKey: apiConfiguration?.openAiApiKey ? "***" : undefined,
+					hasHeaders: Object.keys(headerObject).length > 0,
+				})
+
 				vscode.postMessage({
 					type: "requestOpenAiModels",
 					values: {

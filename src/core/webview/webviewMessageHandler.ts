@@ -1018,6 +1018,11 @@ export const webviewMessageHandler = async (
 		case "requestOpenAiModels": {
 			// Specific handler for OpenAI models only - similar to Ollama and LM Studio
 			const { apiConfiguration: openAiApiConfig } = await provider.getState()
+			console.log("[webviewMessageHandler] requestOpenAiModels - config:", {
+				hasBaseUrl: !!openAiApiConfig.openAiBaseUrl,
+				hasApiKey: !!openAiApiConfig.openAiApiKey,
+				hasHeaders: !!openAiApiConfig.openAiHeaders,
+			})
 			try {
 				// Flush cache first to ensure fresh models
 				await flushModels("openai")
@@ -1029,12 +1034,18 @@ export const webviewMessageHandler = async (
 					openAiHeaders: openAiApiConfig.openAiHeaders,
 				})
 
+				console.log("[webviewMessageHandler] getModels result:", Object.keys(openAiModels).length, "models")
+
 				if (Object.keys(openAiModels).length > 0) {
 					provider.postMessageToWebview({ type: "openAiModels", openAiModels: Object.keys(openAiModels) })
+				} else {
+					console.log("[webviewMessageHandler] No models returned, sending empty array")
+					provider.postMessageToWebview({ type: "openAiModels", openAiModels: [] })
 				}
 			} catch (error) {
 				// Silently fail - user hasn't configured OpenAI yet
 				console.debug("OpenAI models fetch failed:", error)
+				provider.postMessageToWebview({ type: "openAiModels", openAiModels: [] })
 			}
 			break
 		}

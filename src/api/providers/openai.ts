@@ -526,7 +526,14 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 
 export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiHeaders?: Record<string, string>) {
 	try {
+		console.log("[getOpenAiModels] Called with:", {
+			hasBaseUrl: !!baseUrl,
+			hasApiKey: !!apiKey,
+			hasHeaders: !!openAiHeaders,
+		})
+
 		if (!baseUrl) {
+			console.log("[getOpenAiModels] No baseUrl provided, returning empty array")
 			return []
 		}
 
@@ -534,6 +541,7 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 		const trimmedBaseUrl = baseUrl.trim()
 
 		if (!URL.canParse(trimmedBaseUrl)) {
+			console.log("[getOpenAiModels] Invalid baseUrl:", trimmedBaseUrl)
 			return []
 		}
 
@@ -551,10 +559,13 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 			config["headers"] = headers
 		}
 
+		console.log("[getOpenAiModels] Fetching from:", `${trimmedBaseUrl}/models`)
 		const response = await axios.get(`${trimmedBaseUrl}/models`, config)
 		const modelsArray = response.data?.data?.map((model: any) => model.id) || []
+		console.log("[getOpenAiModels] Success:", modelsArray.length, "models")
 		return [...new Set<string>(modelsArray)]
 	} catch (error) {
+		console.log("[getOpenAiModels] Error:", error instanceof Error ? error.message : error)
 		return []
 	}
 }

@@ -3,6 +3,7 @@ import type { ModelInfo } from "@roo-code/types"
 
 export const usePreferredModels = (models: Record<string, ModelInfo> | null) => {
 	return useMemo(() => {
+		console.log("[usePreferredModels] Input models:", models ? Object.keys(models).length : 0, "models")
 		if (!models) return []
 
 		const preferredModelIds = []
@@ -28,6 +29,8 @@ export const usePreferredModels = (models: Record<string, ModelInfo> | null) => 
 		}
 		restModelIds.sort((a, b) => a.localeCompare(b))
 
-		return [...preferredModelIds, ...restModelIds]
+		const result = [...preferredModelIds, ...restModelIds]
+		console.log("[usePreferredModels] Returning:", result.length, "models")
+		return result
 	}, [models])
 }
