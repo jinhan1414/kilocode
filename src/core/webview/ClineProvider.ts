@@ -343,13 +343,19 @@ export class ClineProvider
 		this.updateCodeIndexStatusSubscription()
 	}
 
-	public setActiveWorkspacePath(path: string) {
+	public async setActiveWorkspacePath(path: string) {
+		this.log(`[Workspace] setActiveWorkspacePath called with: ${path}`)
+		this.log(`[Workspace] OLD activeWorkspacePath: ${this.activeWorkspacePath}`)
+		this.log(`[Workspace] OLD cwd: ${this.cwd}`)
 		this.activeWorkspacePath = path
 		this.cwd = path
 		setActiveWorkspacePath(this.cwd)
-		this.postStateToWebview()
+		this.log(`[Workspace] NEW activeWorkspacePath: ${this.activeWorkspacePath}`)
+		this.log(`[Workspace] NEW cwd: ${this.cwd}`)
+		await this.postStateToWebview()
 		// kilocode_change: ensure index subscription is updated on active workspace change
 		this.updateCodeIndexStatusSubscription()
+		this.log(`[Workspace] setActiveWorkspacePath finished`)
 	}
 	/**
 	 * Override EventEmitter's on method to match TaskProviderLike interface

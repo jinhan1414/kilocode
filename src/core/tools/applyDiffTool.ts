@@ -77,6 +77,12 @@ export async function applyDiffToolLegacy(
 			}
 
 			const absolutePath = path.resolve(cline.cwd, relPath)
+			const providerForLog = cline.providerRef.deref()
+			if (providerForLog) {
+				providerForLog.log(`[applyDiff] CWD: ${cline.cwd}`)
+				providerForLog.log(`[applyDiff] Relative Path: ${relPath}`)
+				providerForLog.log(`[applyDiff] Resolved Absolute Path: ${absolutePath}`)
+			}
 			const fileExists = await fileExistsAtPath(absolutePath)
 
 			if (!fileExists) {

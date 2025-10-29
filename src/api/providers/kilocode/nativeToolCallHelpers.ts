@@ -89,7 +89,11 @@ export function addNativeToolCallsToParams<T extends OpenAI.Chat.ChatCompletionC
 ): T {
 	// When toolStyle is "json" and allowedTools exist, add them to params
 	if (getActiveToolUseStyle(options) === "json" && metadata?.allowedTools) {
-		params.tools = metadata.allowedTools
+		// Filter out redundant tools that are replaced by apply_diff
+		const excludedTools = ["insert_content", "search_and_replace", "new_task"]
+		const filteredTools = metadata.allowedTools.filter((tool: any) => !excludedTools.includes(tool.function?.name))
+
+		params.tools = filteredTools
 		//optimally we'd have tool_choice as 'required', but many providers, especially
 		// those using SGlang dont properly handle that setting and barf with a 400.
 		params.tool_choice = "required" as const

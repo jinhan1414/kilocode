@@ -109,20 +109,50 @@ export const apply_diff_multi_file = {
 	type: "function",
 	function: {
 		name: "apply_diff",
-		description: `Apply precise, targeted modifications to multiple files in a single operation. This tool performs "find and replace" operations across files - the SEARCH block locates content, and the REPLACE block defines what to put in its place.
+		description: `Apply precise, targeted modifications to multiple files in a single operation. This tool performs "find and replace" operations - SEARCH block locates content, REPLACE block defines what to put in its place.
 
 CRITICAL RULES:
 1. SEARCH block MUST contain at least one line that exactly matches existing file content (including whitespace/indentation). This serves as the "anchor point".
 2. SEARCH block CANNOT be empty - even for insertions, you need an anchor line.
 3. For insertions: REPLACE = SEARCH content + new content (before or after the anchor).
-4. Use 'read_file' first if unsure of exact content.
-5. Use this tool to edit multiple files in a single operation whenever possible.
+4. Use 'read_file' first to confirm file content.
+5. For modifications involving multiple lines or complex logic, consider breaking 'apply_diff' into smaller, independent 'diff' operations.
+6. Carefully verify the 'start_line' parameter to ensure it matches the actual starting line number of the 'SEARCH' block in the file.
+7. If 'apply_diff' fails, immediately 'read_file' the target file again, analyze the error message, and reconstruct the 'diff' based on the latest file content.
 
 USE CASES:
 - Replace: SEARCH for old content, REPLACE with new content
 - Insert after: SEARCH for anchor line, REPLACE with anchor + new lines
 - Insert before: SEARCH for anchor line, REPLACE with new lines + anchor
-- Delete: SEARCH for content to remove, REPLACE with empty or surrounding content`,
+- Delete: SEARCH for content to remove, REPLACE with empty or surrounding content
+
+COMPLETE EXAMPLE:
+{
+  "files": [
+    {
+      "path": "src/utils.ts",
+      "diffs": [
+        {
+          "content": "<<<<<<< SEARCH\nexport function oldFunc() {\n  return 'old'\n}\n=======\nexport function newFunc() {\n  return 'new'\n}\n>>>>>>> REPLACE",
+          "start_line": 10
+        },
+        {
+          "content": "<<<<<<< SEARCH\nimport { helper } from './helper'\n=======\nimport { helper } from './helper'\nimport { newHelper } from './newHelper'\n>>>>>>> REPLACE",
+          "start_line": 1
+        }
+      ]
+    },
+    {
+      "path": "src/config.ts",
+      "diffs": [
+        {
+          "content": "<<<<<<< SEARCH\nconst DEBUG = false\n=======\nconst DEBUG = true\n>>>>>>> REPLACE",
+          "start_line": 5
+        }
+      ]
+    }
+  ]
+}`,
 		parameters: {
 			type: "object",
 			properties: {
@@ -146,12 +176,26 @@ USE CASES:
 									properties: {
 										content: {
 											type: "string",
-											description: `Search/replace block defining the changes. Format:
+											description: `REQUIRED: A complete SEARCH/REPLACE block. This is NOT just the content to insert - it MUST include the full block structure with SEARCH and REPLACE sections.
+
+MANDATORY FORMAT:
 <<<<<<< SEARCH
 [exact content to find - must match file exactly]
 =======
 [new content to replace with]
 >>>>>>> REPLACE
+
+WARNING: Do NOT use this format:
+{
+  "content": "new content",
+  "start_line": 95
+}
+
+CORRECT FORMAT:
+{
+  "content": "<<<<<<< SEARCH\nold line\n=======\nnew line\n>>>>>>> REPLACE",
+  "start_line": 95
+}
 
 EXAMPLES:
 
@@ -181,7 +225,7 @@ anchor line
 										start_line: {
 											type: "integer",
 											description:
-												"The line number in the original file where the SEARCH block begins. This helps locate the anchor point.",
+												"OPTIONAL: The approximate line number where the SEARCH block begins. This is a hint for faster matching, NOT a replacement for the SEARCH block. The SEARCH block content is what actually locates the change.",
 										},
 									},
 									required: ["content", "start_line"],

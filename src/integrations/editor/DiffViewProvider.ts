@@ -38,11 +38,17 @@ export class DiffViewProvider {
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
 	private taskRef: WeakRef<Task>
 
-	constructor(
-		private cwd: string,
-		task: Task,
-	) {
+	constructor(cwd: string, task: Task) {
 		this.taskRef = new WeakRef(task)
+	}
+
+	/**
+	 * Get the current working directory dynamically from the task
+	 * This ensures we always use the latest cwd even after workspace switches
+	 */
+	private get cwd(): string {
+		const task = this.taskRef.deref()
+		return task?.cwd ?? ""
 	}
 
 	async open(relPath: string): Promise<void> {

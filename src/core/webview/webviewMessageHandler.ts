@@ -3775,7 +3775,18 @@ export const webviewMessageHandler = async (
 		}
 		case "switchWorkspace": {
 			if (message.path) {
-				provider.setActiveWorkspacePath(message.path)
+				provider.log(`[Workspace] Received switchWorkspace message for path: ${message.path}`)
+				// Cancel current task before switching workspace to ensure new tasks use the correct cwd
+				const currentTask = provider.getCurrentTask()
+				if (currentTask) {
+					provider.log(`[Workspace] Cancelling current task ${currentTask.taskId} before switching.`)
+					await provider.cancelTask()
+					provider.log(`[Workspace] Current task cancelled.`)
+				} else {
+					provider.log(`[Workspace] No current task to cancel.`)
+				}
+				await provider.setActiveWorkspacePath(message.path)
+				provider.log(`[Workspace] Finished processing switchWorkspace message.`)
 			}
 			break
 		}

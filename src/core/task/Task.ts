@@ -1400,32 +1400,53 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// even if it goes out of sync with cline messages.
 		let existingApiConversationHistory: ApiMessage[] = await this.getSavedApiConversationHistory()
 
+		// kilocode_change start: Check current toolStyle to decide how to convert tool blocks
+		const currentToolStyle = getActiveToolUseStyle(this.apiConfiguration)
+		// kilocode_change end
+
 		// v2.0 xml tags refactor caveat: since we don't use tools anymore, we need to replace all tool use blocks with a text block since the API disallows conversations with tool uses and no tool schema
+		// kilocode_change: Only convert to XML if current toolStyle is "xml", otherwise keep tool blocks for JSON format
 		const conversationWithoutToolBlocks = existingApiConversationHistory.map((message) => {
 			if (Array.isArray(message.content)) {
 				const newContent = message.content.map((block) => {
 					if (block.type === "tool_use") {
-						// It's important we convert to the new tool schema
-						// format so the model doesn't get confused about how to
-						// invoke tools.
-						const inputAsXml = Object.entries(block.input as Record<string, string>)
-							.map(([key, value]) => `<${key}>\n${value}\n</${key}>`)
-							.join("\n")
-						return {
-							type: "text",
-							text: `<${block.name}>\n${inputAsXml}\n</${block.name}>`,
-						} as Anthropic.Messages.TextBlockParam
+						// kilocode_change start: Only convert to XML if toolStyle is "xml"
+						if (currentToolStyle === "xml") {
+							// It's important we convert to the new tool schema
+							// format so the model doesn't get confused about how to
+							// invoke tools.
+							const inputAsXml = Object.entries(block.input as Record<string, string>)
+								.map(([key, value]) => `<${key}>\n${value}\n</${key}>`)
+								.join("\n")
+							return {
+								type: "text",
+								text: `<${block.name}>\n${inputAsXml}\n</${block.name}>`,
+							} as Anthropic.Messages.TextBlockParam
+						} else {
+							// For JSON toolStyle, keep the tool_use block as-is
+							// It will be converted to OpenAI format by convertToOpenAiMessages
+							return block
+						}
+						// kilocode_change end
 					} else if (block.type === "tool_result") {
-						// Convert block.content to text block array, removing images
-						const contentAsTextBlocks = Array.isArray(block.content)
-							? block.content.filter((item) => item.type === "text")
-							: [{ type: "text", text: block.content }]
-						const textContent = contentAsTextBlocks.map((item) => item.text).join("\n\n")
-						const toolName = findToolName(block.tool_use_id, existingApiConversationHistory)
-						return {
-							type: "text",
-							text: `[${toolName} Result]\n\n${textContent}`,
-						} as Anthropic.Messages.TextBlockParam
+						// kilocode_change start: Only convert to text if toolStyle is "xml"
+						if (currentToolStyle === "xml") {
+							// Convert block.content to text block array, removing images
+							const contentAsTextBlocks = Array.isArray(block.content)
+								? block.content.filter((item) => item.type === "text")
+								: [{ type: "text", text: block.content }]
+							const textContent = contentAsTextBlocks.map((item) => item.text).join("\n\n")
+							const toolName = findToolName(block.tool_use_id, existingApiConversationHistory)
+							return {
+								type: "text",
+								text: `[${toolName} Result]\n\n${textContent}`,
+							} as Anthropic.Messages.TextBlockParam
+						} else {
+							// For JSON toolStyle, keep the tool_result block as-is
+							// It will be converted to OpenAI format by convertToOpenAiMessages
+							return block
+						}
+						// kilocode_change end
 					}
 					return block
 				})
@@ -3198,8 +3219,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	public get cwd() {
 		const provider = this.providerRef.deref()
 		if (provider && provider.cwd) {
+			console.log(`[Task ${this.taskId}] cwd getter: returning provider.cwd: ${provider.cwd}`)
 			return provider.cwd
 		}
+		console.log(`[Task ${this.taskId}] cwd getter: falling back to this.workspacePath: ${this.workspacePath}`)
 		return this.workspacePath
 	}
 
