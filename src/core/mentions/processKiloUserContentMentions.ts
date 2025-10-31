@@ -100,19 +100,32 @@ export async function processKiloUserContentMentions({
 				} else if (block.type === "tool_result") {
 					if (typeof block.content === "string") {
 						if (shouldProcessMentions(block.content)) {
+							const parsedText = await parseMentions(
+								block.content,
+								cwd,
+								urlContentFetcher,
+								fileContextTracker,
+								rooIgnoreController,
+								showRooIgnoredFiles,
+								includeDiagnosticMessages,
+								maxDiagnosticMessages,
+								maxReadFileLine,
+							)
+
+							// Process slash commands for tool_result blocks as well
+							const { processedText, needsRulesFileCheck: needsCheck } = await parseKiloSlashCommands(
+								parsedText,
+								localWorkflowToggles,
+								globalWorkflowToggles,
+							)
+
+							if (needsCheck) {
+								needsRulesFileCheck = true
+							}
+
 							return {
 								...block,
-								content: await parseMentions(
-									block.content,
-									cwd,
-									urlContentFetcher,
-									fileContextTracker,
-									rooIgnoreController,
-									showRooIgnoredFiles,
-									includeDiagnosticMessages,
-									maxDiagnosticMessages,
-									maxReadFileLine,
-								),
+								content: processedText,
 							}
 						}
 
@@ -121,19 +134,33 @@ export async function processKiloUserContentMentions({
 						const parsedContent = await Promise.all(
 							block.content.map(async (contentBlock) => {
 								if (contentBlock.type === "text" && shouldProcessMentions(contentBlock.text)) {
+									const parsedText = await parseMentions(
+										contentBlock.text,
+										cwd,
+										urlContentFetcher,
+										fileContextTracker,
+										rooIgnoreController,
+										showRooIgnoredFiles,
+										includeDiagnosticMessages,
+										maxDiagnosticMessages,
+										maxReadFileLine,
+									)
+
+									// Process slash commands for tool_result content blocks as well
+									const { processedText, needsRulesFileCheck: needsCheck } =
+										await parseKiloSlashCommands(
+											parsedText,
+											localWorkflowToggles,
+											globalWorkflowToggles,
+										)
+
+									if (needsCheck) {
+										needsRulesFileCheck = true
+									}
+
 									return {
 										...contentBlock,
-										text: await parseMentions(
-											contentBlock.text,
-											cwd,
-											urlContentFetcher,
-											fileContextTracker,
-											rooIgnoreController,
-											showRooIgnoredFiles,
-											includeDiagnosticMessages,
-											maxDiagnosticMessages,
-											maxReadFileLine,
-										),
+										text: processedText,
 									}
 								}
 
