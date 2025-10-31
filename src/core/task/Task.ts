@@ -1925,9 +1925,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			const environmentDetails = await getEnvironmentDetails(this, currentIncludeFileDetails)
 
+			// Check if parsedUserContent already contains environment_details to prevent duplicates
+			const hasEnvironmentDetails = parsedUserContent.some(
+				(block) => block.type === "text" && block.text.includes("<environment_details>"),
+			)
+
 			// Add environment details as its own text block, separate from tool
-			// results.
-			const finalUserContent = [...parsedUserContent, { type: "text" as const, text: environmentDetails }]
+			// results, only if it doesn't already exist
+			const finalUserContent = hasEnvironmentDetails
+				? parsedUserContent
+				: [...parsedUserContent, { type: "text" as const, text: environmentDetails }]
 
 			await this.addToApiConversationHistory({ role: "user", content: finalUserContent })
 			TelemetryService.instance.captureConversationMessage(this.taskId, "user")
