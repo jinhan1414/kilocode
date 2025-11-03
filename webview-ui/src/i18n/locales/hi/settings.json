@@ -246,6 +246,8 @@
 		"noProviderMatchFound": "कोई प्रदाता नहीं मिला",
 		"noMatchFound": "कोई मिलान प्रोफ़ाइल नहीं मिला",
 		"vscodeLmDescription": "VS कोड भाषा मॉडल API आपको अन्य VS कोड एक्सटेंशन (जैसे GitHub Copilot) द्वारा प्रदान किए गए मॉडल चलाने की अनुमति देता है। शुरू करने का सबसे आसान तरीका VS कोड मार्केटप्लेस से Copilot और Copilot चैट एक्सटेंशन इंस्टॉल करना है।",
+		"vscodeLmUnavailable": "VS Code भाषा मॉडल समर्थन केवल Visual Studio Code में उपलब्ध है। VSCodium जैसे फोर्क और अन्य काम नहीं कर सकते। इसके अलावा, यह क्षमता JetBrains टूल में उपलब्ध नहीं है।",
+		"vscodeLmUnavailableInstructions": "सुनिश्चित करें कि आप किसी समर्थित टूल का उपयोग कर रहे हैं और VS Code Chat इंस्टॉल और सक्षम है",
 		"awsCustomArnUse": "आप जिस मॉडल का उपयोग करना चाहते हैं, उसके लिए एक वैध Amazon बेडरॉक ARN दर्ज करें। प्रारूप उदाहरण:",
 		"awsCustomArnDesc": "सुनिश्चित करें कि ARN में क्षेत्र ऊपर चयनित AWS क्षेत्र से मेल खाता है।",
 		"openRouterApiKey": "OpenRouter API कुंजी",
@@ -461,6 +463,10 @@
 				}
 			},
 			"resetDefaults": "डिफ़ॉल्ट पर रीसेट करें"
+		},
+		"rateLimitAfter": {
+			"label": "अंत में दर सीमा",
+			"description": "API स्ट्रीम समाप्त होने के बाद दर सीमा लगाना शुरू करें."
 		},
 		"rateLimitSeconds": {
 			"label": "दर सीमा",
@@ -767,7 +773,7 @@
 		},
 		"MORPH_FAST_APPLY": {
 			"name": "Fast Apply सक्षम करें",
-			"description": "जब सक्षम होता है, तो Kilo Code कोड संशोधनों के लिए अनुकूलित विशेष मॉडल के साथ Fast Apply का उपयोग करके फ़ाइलें संपादित कर सकता है। Kilo Code API प्रदाता, OpenRouter, या Morph API कुंजी की आवश्यकता है।",
+			"description": "जब सक्षम होता है, तो Kilo Code कोड संशोधनों के लिए अनुकूलित विशेष मॉडल के साथ Fast Apply का उपयोग करके फ़ाइलें संपादित कर सकता है। Kilo Gateway Provider, OpenRouter, या Morph API कुंजी की आवश्यकता है।",
 			"apiKey": "Morph API कुंजी (वैकल्पिक)",
 			"placeholder": "अपनी Morph API कुंजी दर्ज करें (वैकल्पिक)",
 			"modelLabel": "मॉडल चयन",

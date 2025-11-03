@@ -246,6 +246,8 @@
 		"noProviderMatchFound": "공급자를 찾을 수 없습니다",
 		"noMatchFound": "일치하는 프로필이 없습니다",
 		"vscodeLmDescription": "VS Code 언어 모델 API를 사용하면 GitHub Copilot을 포함한 기타 VS Code 확장 프로그램이 제공하는 모델을 실행할 수 있습니다. 시작하려면 VS Code 마켓플레이스에서 Copilot 및 Copilot Chat 확장 프로그램을 설치하는 것이 가장 쉽습니다.",
+		"vscodeLmUnavailable": "VS Code 언어 모델 기능은 Visual Studio Code에서만 제공됩니다. VSCodium과 같은 포크에서는 작동하지 않을 수 있습니다. 또한 이 기능은 JetBrains 도구에서는 사용할 수 없습니다.",
+		"vscodeLmUnavailableInstructions": "지원되는 도구를 사용 중인지 확인하고 VS Code Chat이 설치되어 활성화되어 있는지 확인하세요",
 		"awsCustomArnUse": "사용하려는 모델의 유효한 Amazon Bedrock ARN을 입력하세요. 형식 예시:",
 		"awsCustomArnDesc": "ARN의 리전이 위에서 선택한 AWS 리전과 일치하는지 확인하세요.",
 		"openRouterApiKey": "OpenRouter API 키",
@@ -461,6 +463,10 @@
 				}
 			},
 			"resetDefaults": "기본값으로 재설정"
+		},
+		"rateLimitAfter": {
+			"label": "종료 시 속도 제한",
+			"description": "API 스트림이 끝난 후 속도 제한을 시작합니다."
 		},
 		"rateLimitSeconds": {
 			"label": "속도 제한",
@@ -767,7 +773,7 @@
 		},
 		"MORPH_FAST_APPLY": {
 			"name": "Fast Apply 활성화",
-			"description": "활성화하면 Kilo Code는 코드 수정에 최적화된 특수 모델을 사용하여 Fast Apply로 파일을 편집할 수 있습니다. Kilo Code API 제공자, OpenRouter 또는 Morph API 키가 필요합니다.",
+			"description": "활성화하면 Kilo Code는 코드 수정에 최적화된 특수 모델을 사용하여 Fast Apply로 파일을 편집할 수 있습니다. Kilo Gateway Provider, OpenRouter 또는 Morph API 키가 필요합니다.",
 			"apiKey": "Morph API 키 (선택사항)",
 			"placeholder": "Morph API 키를 입력하세요 (선택사항)",
 			"modelLabel": "모델 선택",

@@ -333,7 +333,6 @@ export interface ILLMLogger {
 
 export interface LLMOptions {
 	model: string
-
 	title?: string
 	uniqueId?: string
 	autocompleteOptions?: Partial<TabAutocompleteOptions>
@@ -346,6 +345,7 @@ export interface LLMOptions {
 	useLegacyCompletionsEndpoint?: boolean
 	capabilities?: ModelCapability
 	env?: Record<string, string | number | boolean>
+	promptTemplates?: Partial<Record<keyof PromptTemplates, PromptTemplate>>
 }
 
 type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> &
@@ -511,6 +511,9 @@ export interface BaseCompletionOptions {
 	maxTokens?: number
 	raw?: boolean
 	stream?: boolean
+	reasoning?: boolean
+	reasoningBudgetTokens?: number
+	promptCaching?: boolean
 }
 
 export interface ModelCapability {
@@ -618,6 +621,17 @@ export class SignatureInformation {
 	 * the UI.
 	 */
 	label: string
+	/**
+	 * The parameters of this signature.
+	 */
+	parameters: ParameterInformation[]
+
+	/**
+	 * The index of the active parameter.
+	 *
+	 * If provided, this is used in place of {@linkcode SignatureHelp.activeParameter}.
+	 */
+	activeParameter?: number
 }
 
 export type ConfigMergeType = "merge" | "overwrite"

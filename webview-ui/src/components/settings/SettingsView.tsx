@@ -210,6 +210,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		remoteBrowserEnabled,
 		maxReadFileLine,
 		showAutoApproveMenu, // kilocode_change
+		yoloMode, // kilocode_change
 		showTaskTimeline, // kilocode_change
 		sendMessageOnEnter, // kilocode_change
 		showTimestamps, // kilocode_change
@@ -300,6 +301,32 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			return { ...prevState, [field]: value }
 		})
 	}, [])
+
+	// kilocode_change start
+	const setGhostServiceSettingsField = useCallback(
+		<K extends keyof NonNullable<ExtensionStateContextType["ghostServiceSettings"]>>(
+			field: K,
+			value: NonNullable<ExtensionStateContextType["ghostServiceSettings"]>[K],
+		) => {
+			setCachedState((prevState) => {
+				const currentSettings = prevState.ghostServiceSettings || {}
+				if (currentSettings[field] === value) {
+					return prevState
+				}
+
+				setChangeDetected(true)
+				return {
+					...prevState,
+					ghostServiceSettings: {
+						...currentSettings,
+						[field]: value,
+					},
+				}
+			})
+		},
+		[],
+	)
+	// kilocode_change end
 
 	const setApiConfigurationField = useCallback(
 		<K extends keyof ProviderSettings>(field: K, value: ProviderSettings[K], isUserAction: boolean = true) => {
@@ -446,6 +473,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "maxWorkspaceFiles", value: maxWorkspaceFiles ?? 200 })
 			vscode.postMessage({ type: "showRooIgnoredFiles", bool: showRooIgnoredFiles })
 			vscode.postMessage({ type: "showAutoApproveMenu", bool: showAutoApproveMenu }) // kilocode_change
+			vscode.postMessage({ type: "yoloMode", bool: yoloMode }) // kilocode_change
 			vscode.postMessage({ type: "maxReadFileLine", value: maxReadFileLine ?? -1 })
 			vscode.postMessage({ type: "maxImageFileSize", value: maxImageFileSize ?? 5 })
 			vscode.postMessage({ type: "maxTotalImageSize", value: maxTotalImageSize ?? 20 })
@@ -798,6 +826,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{activeTab === "autoApprove" && (
 						<AutoApproveSettings
 							showAutoApproveMenu={showAutoApproveMenu} // kilocode_change
+							yoloMode={yoloMode} // kilocode_change
 							alwaysAllowReadOnly={alwaysAllowReadOnly}
 							alwaysAllowReadOnlyOutsideWorkspace={alwaysAllowReadOnlyOutsideWorkspace}
 							alwaysAllowWrite={alwaysAllowWrite}
@@ -859,7 +888,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{activeTab === "ghost" && (
 						<GhostServiceSettingsView
 							ghostServiceSettings={ghostServiceSettings}
-							setCachedStateField={setCachedStateField}
+							onGhostServiceSettingsChange={setGhostServiceSettingsField}
 						/>
 					)}
 					{/* kilocode_change end display section */}

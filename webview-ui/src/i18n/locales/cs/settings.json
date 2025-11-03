@@ -255,6 +255,8 @@
 		"noProviderMatchFound": "Nebyli nalezeni žádní poskytovatelé",
 		"noMatchFound": "Nebyly nalezeny žádné odpovídající profily",
 		"vscodeLmDescription": "API jazykového modelu VS Code vám umožňuje spouštět modely poskytované jinými rozšířeními VS Code (včetně, ale nejen, GitHub Copilot). Nejjednodušší způsob, jak začít, je nainstalovat rozšíření Copilot a Copilot Chat z VS Code Marketplace.",
+		"vscodeLmUnavailable": "Podpora jazykových modelů VS Code je dostupná pouze ve Visual Studio Code. Forky jako VSCodium a další nemusí fungovat. Dále tato funkce není dostupná v nástrojích JetBrains.",
+		"vscodeLmUnavailableInstructions": "Ujistěte se, že používáte podporovaný nástroj a že máte nainstalovaný a povolený VS Code Chat",
 		"awsCustomArnUse": "Zadejte platný Amazon Bedrock ARN pro model, který chcete použít. Příklady formátu:",
 		"awsCustomArnDesc": "Ujistěte se, že region v ARN odpovídá výše vybranému regionu AWS.",
 		"openRouterApiKey": "Klíč API OpenRouter",
@@ -483,6 +485,10 @@
 				}
 			},
 			"resetDefaults": "Obnovit výchozí"
+		},
+		"rateLimitAfter": {
+			"label": "Omezení rychlosti na konci",
+			"description": "Začněte omezovat rychlost poté, co stream API skončí."
 		},
 		"rateLimitSeconds": {
 			"label": "Omezení rychlosti",
@@ -820,8 +826,8 @@
 			"description": "Povolit experimentální sjednocenou strategii diff. Tato strategie může snížit počet opakování způsobených chybami modelu, ale může způsobit neočekávané chování nebo nesprávné úpravy. Povolte pouze pokud rozumíte rizikům a jste ochotni pečlivě zkontrolovat všechny změny."
 		},
 		"MORPH_FAST_APPLY": {
-			"name": "Povolit rychlé aplikování",
-			"description": "Pokud je povoleno, Kilo Code může upravovat soubory pomocí rychlého aplikování se specializovanými modely optimalizovanými pro úpravy kódu. Vyžaduje poskytovatele Kilo Code API, OpenRouter nebo klíč API Morph.",
+			"name": "Povolit Fast Apply",
+			"description": "Pokud je povoleno, Kilo Code může upravovat soubory pomocí Fast Apply se specializovanými modely optimalizovanými pro úpravy kódu. Vyžaduje Kilo Gateway Provider, OpenRouter nebo klíč API Morph.",
 			"apiKey": "Klíč API Morph (volitelné)",
 			"placeholder": "Zadejte svůj klíč API Morph (volitelné)",
 			"modelLabel": "Výběr modelu",

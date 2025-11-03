@@ -121,7 +121,7 @@ export class CompletionProvider {
 
 		// Enable static contextualization if defined.
 		if (config?.experimental?.enableStaticContextualization) {
-			options.experimental_enableStaticContextualization = true
+			options.experimental_enableStaticContextualization = false
 		}
 
 		return options
@@ -277,3 +277,5 @@ export class CompletionProvider {
 		}
 	}
 }
+
+export default CompletionProvider

@@ -61,6 +61,26 @@ to complete configuration with an interactive workflow on the command line.
 You can also use the `/config` slash command during an interactive session, which is equivalent to running `kilocode config`.
 :::
 
+## Parallel mode
+
+Parallel mode allows multiple Kilo Code instances to work in parallel on the same directory, without conflicts. You can spawn as many Kilo Code instances as you need! Once finished, changes will be available on a separate git branch.
+
+```bash
+# Prerequisite: must be within a valid git repository
+
+# In interactive mode, changes will be committed on /exit
+# Terminal 1
+kilocode --parallel "improve xyz"
+# Terminal 2
+kilocode --parallel "improve abc"
+
+# Pairs great with auto mode 🚀
+# Terminal 1
+kilocode --parallel --auto "improve xyz"
+# Terminal 2
+kilocode --parallel --auto "improve abc"
+```
+
 ## Autonomous mode (Non-Interactive)
 
 Autonomous mode allows Kilo Code to run in automated environments like CI/CD pipelines without requiring user interaction.
@@ -227,3 +247,11 @@ This instructs the AI to proceed without user input.
 ### DevTools
 
 In order to run the CLI with devtools, add `DEV=true` to your `pnpm start` command, and then run `npx react-devtools` to show the devtools inspector.
+
+## Switching into an Organization from the CLI
+
+Use the `/teams` command to see a list of all organizations you can switch into.
+
+Use `/teams select` and start typing the team name to switch teams.
+
+The process is the same when switching into a Team or Enterprise organization.
