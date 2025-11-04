@@ -33,6 +33,10 @@ export async function estimateTokenCount(
  * The first message is always retained, and a specified fraction (rounded to an even number)
  * of messages from the beginning (excluding the first) is removed.
  *
+ * When using native tool calls, this function ensures that tool call pairs (assistant message
+ * with tool_use and corresponding user message with tool_result) are kept together to maintain
+ * conversation integrity.
+ *
  * @param {ApiMessage[]} messages - The conversation messages.
  * @param {number} fracToRemove - The fraction (between 0 and 1) of messages (excluding the first) to remove.
  * @param {string} taskId - The task ID for the conversation, used for telemetry
@@ -43,7 +47,38 @@ export function truncateConversation(messages: ApiMessage[], fracToRemove: numbe
 	const truncatedMessages = [messages[0]]
 	const rawMessagesToRemove = Math.floor((messages.length - 1) * fracToRemove)
 	const messagesToRemove = rawMessagesToRemove - (rawMessagesToRemove % 2)
-	const remainingMessages = messages.slice(messagesToRemove + 1)
+
+	// Find the actual cut point, ensuring we don't break tool call pairs
+	let cutIndex = messagesToRemove + 1
+
+	// Check if we're cutting in the middle of a tool call sequence
+	// We need to ensure that tool_use/tool_result pairs stay together
+	if (cutIndex < messages.length) {
+		const messageAtCut = messages[cutIndex]
+
+		// Check if this is a user message with tool_result blocks (Anthropic format)
+		if (messageAtCut.role === "user" && Array.isArray(messageAtCut.content)) {
+			const hasToolResults = messageAtCut.content.some((block: any) => block.type === "tool_result")
+
+			if (hasToolResults) {
+				// Find the corresponding assistant message with tool_use blocks
+				// Search backwards from cutIndex to find the assistant message
+				for (let i = cutIndex - 1; i > 0; i--) {
+					const msg = messages[i]
+					if (msg.role === "assistant" && Array.isArray(msg.content)) {
+						const hasToolUse = msg.content.some((block: any) => block.type === "tool_use")
+						if (hasToolUse) {
+							// Move cut point to before this assistant message to exclude the incomplete pair
+							cutIndex = i
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	const remainingMessages = messages.slice(cutIndex)
 	truncatedMessages.push(...remainingMessages)
 
 	return truncatedMessages

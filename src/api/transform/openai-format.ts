@@ -7,6 +7,8 @@ export function convertToOpenAiMessages(
 	toolStyle?: ToolUseStyle,
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
 	const openAiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = []
+	// kilocode_change: Track tool_use_ids from assistant messages to validate tool results
+	const validToolUseIds = new Set<string>()
 
 	for (const anthropicMessage of anthropicMessages) {
 		if (typeof anthropicMessage.content === "string") {
@@ -67,7 +69,27 @@ export function convertToOpenAiMessages(
 					})
 				} else {
 					// In JSON mode (or default), use native tool format
+					// kilocode_change start: Deduplicate tool results by tool_use_id to prevent duplicate tool messages
+					const seenToolUseIds = new Set<string>()
+
 					toolMessages.forEach((toolMessage) => {
+						// Skip duplicate tool_use_id to prevent duplicate tool messages
+						if (seenToolUseIds.has(toolMessage.tool_use_id)) {
+							console.warn(
+								`[convertToOpenAiMessages] Skipping duplicate tool result for tool_use_id: ${toolMessage.tool_use_id}`,
+							)
+							return
+						}
+						// kilocode_change: Skip orphaned tool results (missing corresponding tool_use)
+						if (!validToolUseIds.has(toolMessage.tool_use_id)) {
+							console.warn(
+								`[convertToOpenAiMessages] Skipping orphaned tool result for tool_use_id: ${toolMessage.tool_use_id} (no matching tool_use found in conversation history)`,
+							)
+							return
+						}
+						seenToolUseIds.add(toolMessage.tool_use_id)
+						// kilocode_change end
+
 						let content: string
 
 						if (typeof toolMessage.content === "string") {
@@ -193,15 +215,19 @@ export function convertToOpenAiMessages(
 					}
 
 					// Process tool use messages
-					let tool_calls: OpenAI.Chat.ChatCompletionMessageToolCall[] = toolMessages.map((toolMessage) => ({
-						id: toolMessage.id,
-						type: "function",
-						function: {
-							name: toolMessage.name,
-							// json string
-							arguments: JSON.stringify(toolMessage.input),
-						},
-					}))
+					// kilocode_change: Track valid tool_use_ids for later validation
+					let tool_calls: OpenAI.Chat.ChatCompletionMessageToolCall[] = toolMessages.map((toolMessage) => {
+						validToolUseIds.add(toolMessage.id)
+						return {
+							id: toolMessage.id,
+							type: "function",
+							function: {
+								name: toolMessage.name,
+								// json string
+								arguments: JSON.stringify(toolMessage.input),
+							},
+						}
+					})
 
 					openAiMessages.push({
 						role: "assistant",
