@@ -11,8 +11,27 @@ export async function askFollowupQuestionTool(
 	pushToolResult: PushToolResult,
 	removeClosingTag: RemoveClosingTag,
 ) {
-	const question: string | undefined = block.params.question
-	const follow_up: string | undefined = block.params.follow_up
+	let question: string | undefined = block.params.question
+	let follow_up: any = block.params.follow_up
+
+	// Handle cases where params are stringified JSON
+	if (typeof question === "string" && question.trim().startsWith("{")) {
+		try {
+			const parsed = JSON.parse(question)
+			question = parsed.question
+			follow_up = parsed.follow_up
+		} catch (e) {
+			// Not a JSON string, proceed as normal
+		}
+	}
+
+	if (typeof follow_up === "string") {
+		try {
+			follow_up = JSON.parse(follow_up)
+		} catch (e) {
+			// Not a JSON string, could be XML for legacy format
+		}
+	}
 
 	try {
 		if (block.partial) {

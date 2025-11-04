@@ -29,7 +29,7 @@ export async function writeToFileTool(
 	removeClosingTag: RemoveClosingTag,
 ) {
 	const relPath: string | undefined = block.params.path
-	let newContent: string | undefined = block.params.content
+	let newContent: any = block.params.content
 	let predictedLineCount: number | undefined = parseInt(block.params.line_count ?? "0")
 
 	if (block.partial && (!relPath || newContent === undefined)) {
@@ -74,6 +74,16 @@ export async function writeToFileTool(
 		const absolutePath = path.resolve(cline.cwd, relPath)
 		fileExists = await fileExistsAtPath(absolutePath)
 		cline.diffViewProvider.editType = fileExists ? "modify" : "create"
+	}
+
+	// If the content is an object (from parsed JSON), stringify it.
+	if (typeof newContent === "object" && newContent !== null) {
+		newContent = JSON.stringify(newContent, null, 2)
+	}
+
+	// Ensure newContent is a string before proceeding to avoid type errors with string methods.
+	if (typeof newContent !== "string") {
+		newContent = String(newContent)
 	}
 
 	// pre-processing newContent for cases where weaker models might add artifacts like markdown codeblock markers (deepseek/llama) or extra escape characters (gemini)
