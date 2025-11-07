@@ -54,6 +54,7 @@ export const dynamicProviders = [
 	"chutes",
 	"gemini",
 	"openai", // kilocode_change: moved from customProviders to support dynamic model list
+	"inception",
 	// kilocode_change end
 	"deepinfra",
 	"io-intelligence",
@@ -150,6 +151,7 @@ export const providerNames = [
 	"gemini-cli",
 	"virtual-quota-fallback",
 	"synthetic",
+	"inception",
 	// kilocode_change end
 	"sambanova",
 	"vertex",
@@ -415,6 +417,12 @@ const sambaNovaSchema = apiModelIdProviderModelSchema.extend({
 })
 
 // kilocode_change start
+const inceptionSchema = apiModelIdProviderModelSchema.extend({
+	inceptionLabsBaseUrl: z.string().optional(),
+	inceptionLabsApiKey: z.string().optional(),
+	inceptionLabsModelId: z.string().optional(),
+})
+
 const ovhcloudSchema = baseProviderSettingsSchema.extend({
 	ovhCloudAiEndpointsApiKey: z.string().optional(),
 	ovhCloudAiEndpointsModelId: z.string().optional(),
@@ -526,6 +534,7 @@ export const providerSettingsSchemaDiscriminated = z.discriminatedUnion("apiProv
 	kilocodeSchema.merge(z.object({ apiProvider: z.literal("kilocode") })),
 	virtualQuotaFallbackSchema.merge(z.object({ apiProvider: z.literal("virtual-quota-fallback") })),
 	syntheticSchema.merge(z.object({ apiProvider: z.literal("synthetic") })),
+	inceptionSchema.merge(z.object({ apiProvider: z.literal("inception") })),
 	// kilocode_change end
 	groqSchema.merge(z.object({ apiProvider: z.literal("groq") })),
 	huggingFaceSchema.merge(z.object({ apiProvider: z.literal("huggingface") })),
@@ -561,6 +570,8 @@ export const providerSettingsSchema = z.object({
 	...kilocodeSchema.shape,
 	...virtualQuotaFallbackSchema.shape,
 	...syntheticSchema.shape,
+	...ovhcloudSchema.shape,
+	...inceptionSchema.shape,
 	// kilocode_change end
 	...openAiNativeSchema.shape,
 	...mistralSchema.shape,
@@ -587,7 +598,6 @@ export const providerSettingsSchema = z.object({
 	...rooSchema.shape,
 	...vercelAiGatewaySchema.shape,
 	...codebaseIndexProviderSchema.shape,
-	...ovhcloudSchema.shape, // kilocode_change
 })
 
 export type ProviderSettings = z.infer<typeof providerSettingsSchema>
@@ -623,6 +633,7 @@ export const modelIdKeys = [
 	"deepInfraModelId",
 	"kilocodeModel",
 	"ovhCloudAiEndpointsModelId", // kilocode_change
+	"inceptionLabsModelId", // kilocode_change
 ] as const satisfies readonly (keyof ProviderSettings)[]
 
 export type ModelIdKey = (typeof modelIdKeys)[number]
@@ -680,6 +691,7 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	"virtual-quota-fallback": "apiModelId",
 	ovhcloud: "ovhCloudAiEndpointsModelId", // kilocode_change
 	openai: "openAiModelId", // kilocode_change
+	inception: "inceptionLabsModelId", // kilocode_change
 }
 
 /**
@@ -815,6 +827,8 @@ export const MODELS_BY_PROVIDER: Record<
 	openai: { id: "openai", label: "OpenAI Compatible", models: [] }, // kilocode_change
 
 	// kilocode_change start
+	ovhcloud: { id: "ovhcloud", label: "OVHcloud AI Endpoints", models: [] },
+	inception: { id: "inception", label: "Inception", models: [] },
 	kilocode: { id: "kilocode", label: "Kilocode", models: [] },
 	"kilocode-openrouter": { id: "kilocode-openrouter", label: "Kilocode", models: [] }, // temporarily needed to satisfy because we're using 2 inconsistent names apparently
 	"virtual-quota-fallback": { id: "virtual-quota-fallback", label: "Virtual Quota Fallback", models: [] },

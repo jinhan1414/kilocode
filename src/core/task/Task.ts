@@ -44,6 +44,7 @@ import { CloudService, BridgeOrchestrator } from "@roo-code/cloud"
 import { ApiHandler, ApiHandlerCreateMessageMetadata, buildApiHandler } from "../../api"
 import { ApiStream, GroundingSource } from "../../api/transform/stream"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
+import { VirtualQuotaFallbackHandler } from "../../api/providers/virtual-quota-fallback" // kilocode_change: Import VirtualQuotaFallbackHandler for model change notifications
 
 // shared
 import { findLastIndex } from "../../shared/array"
@@ -374,6 +375,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.apiConfiguration = apiConfiguration
 		this.api = buildApiHandler(apiConfiguration)
+		// kilocode_change start: Listen for model changes in virtual quota fallback
+		if (this.api instanceof VirtualQuotaFallbackHandler) {
+			this.api.on("handlerChanged", () => {
+				this.emit("modelChanged")
+			})
+		}
+		// kilocode_change end
 		this.autoApprovalHandler = new AutoApprovalHandler()
 
 		this.urlContentFetcher = new UrlContentFetcher(provider.context)
@@ -412,6 +420,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.messageQueueStateChangedHandler = () => {
 			this.emit(RooCodeEventName.TaskUserMessage, this.taskId)
 			this.providerRef.deref()?.postStateToWebview()
+			this.emit("modelChanged") // kilocode_change: Emit modelChanged for virtual quota fallback UI updates
 		}
 
 		this.messageQueueService.on("stateChanged", this.messageQueueStateChangedHandler)
@@ -2769,6 +2778,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const { profileThresholds = {} } = state ?? {}
 
 		const { contextTokens } = this.getTokenUsage()
+		// kilocode_change start: Initialize virtual quota fallback handler
+		if (this.api instanceof VirtualQuotaFallbackHandler) {
+			await this.api.initialize()
+		}
+		// kilocode_change end
 		const modelInfo = this.api.getModel().info
 
 		const maxTokens = getModelMaxOutputTokens({
@@ -2777,7 +2791,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			settings: this.apiConfiguration,
 		})
 
-		const contextWindow = modelInfo.contextWindow
+		const contextWindow = this.api.contextWindow ?? modelInfo.contextWindow // kilocode_change: Use contextWindow from API handler if available
 
 		// Get the current profile ID using the helper method
 		const currentProfileId = this.getCurrentProfileId(state)
@@ -2901,6 +2915,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const { contextTokens } = this.getTokenUsage()
 
 		if (contextTokens) {
+			// kilocode_change start: Initialize and adjust virtual quota fallback handler
+			if (this.api instanceof VirtualQuotaFallbackHandler) {
+				await this.api.initialize()
+				await this.api.adjustActiveHandler("Pre-Request Adjustment")
+			}
+			// kilocode_change end
 			const modelInfo = this.api.getModel().info
 
 			const maxTokens = getModelMaxOutputTokens({
@@ -2909,7 +2929,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				settings: this.apiConfiguration,
 			})
 
-			const contextWindow = modelInfo.contextWindow
+			const contextWindow = this.api.contextWindow ?? modelInfo.contextWindow // kilocode_change
 
 			// Get the current profile ID using the helper method
 			const currentProfileId = this.getCurrentProfileId(state)
@@ -3021,17 +3041,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		if (getActiveToolUseStyle(apiConfiguration) === "json" && mode) {
 			try {
 				const provider = this.providerRef.deref()
-				const providerState = await provider?.getState()
-
-				const allowedTools = getAllowedJSONToolsForMode(
+				metadata.allowedTools = await getAllowedJSONToolsForMode(
 					mode,
-					undefined, // codeIndexManager is private, not accessible here
-					providerState,
+					provider,
 					this.diffEnabled,
 					this.api?.getModel(),
 				)
-
-				metadata.allowedTools = allowedTools
 			} catch (error) {
 				console.error("[Task] Error getting allowed tools for mode:", error)
 				// Continue without allowedTools - will fall back to default behavior
@@ -3175,11 +3190,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// stream.
 		yield* iterator
 
-        // kilocode_change start
+		// kilocode_change start
 		if (apiConfiguration?.rateLimitAfter) {
 			Task.lastGlobalApiRequestTime = performance.now()
 		}
-        // kilocode_change end
+		// kilocode_change end
 	}
 
 	// Checkpoints

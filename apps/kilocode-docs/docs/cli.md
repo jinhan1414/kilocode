@@ -42,6 +42,8 @@ to start the CLI and begin a new task with your preferred model and relevant mod
 | `/model list`   | List available models                                            |                             |
 | `/model info`   | Prints description for a specific model by name                  | `/model info z-ai/glm-4.5v` |
 | `/model select` | Select and switch to a new model                                 |                             |
+| `/teams`        | List all organizations you can switch into                       |                             |
+| `/teams select` | Switch to a different organization                               |                             |
 | `/config`       | Open configuration editor (same as `kilocode config`)            |                             |
 | `/new`          | Start a new task with the agent with a clean slate               |                             |
 | `/help`         | List available commands and how to use them                      |                             |
@@ -241,6 +243,14 @@ This instructs the AI to proceed without user input.
   run: |
       echo "Implement the new feature" | kilocode --auto --timeout 600
 ```
+
+## Environment Variable Overrides
+
+The CLI supports overriding config values with environment variables. The supported environment variables are:
+
+- `KILO_PROVIDER`: Override the active provider ID
+- For `kilocode` provider: `KILOCODE_<FIELD_NAME>` (e.g., `KILOCODE_MODEL` → `kilocodeModel`)
+- For other providers: `KILO_<FIELD_NAME>` (e.g., `KILO_API_KEY` → `apiKey`)
 
 ## Local Development
 

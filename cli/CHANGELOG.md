@@ -1,5 +1,60 @@
 # @kilocode/cli
 
+## 0.1.2
+
+### Patch Changes
+
+- [#3259](https://github.com/Kilo-Org/kilocode/pull/3259) [`9e50bca`](https://github.com/Kilo-Org/kilocode/commit/9e50bcaebb93383eca1dac8e23ff02339c910ed9) Thanks [@stennkool](https://github.com/stennkool)! - Continue the last task conversation in the workspace (-c argument)
+
+- [#3491](https://github.com/Kilo-Org/kilocode/pull/3491) [`b884c9e`](https://github.com/Kilo-Org/kilocode/commit/b884c9ea220f3c4c3a9c147f0fece64a26c830b4) Thanks [@catrielmuller](https://github.com/catrielmuller)! - File mention suggestion - @my/file
+
+## 0.1.1
+
+### Patch Changes
+
+- [#3475](https://github.com/Kilo-Org/kilocode/pull/3475) [`623f8b7`](https://github.com/Kilo-Org/kilocode/commit/623f8b7583cd98cafd3b3a49563ffe05b87f2818) Thanks [@iscekic](https://github.com/iscekic)! - logs version on boot
+
+- [#3474](https://github.com/Kilo-Org/kilocode/pull/3474) [`e04b81a`](https://github.com/Kilo-Org/kilocode/commit/e04b81a258bac18abb640d265258a9551494c21d) Thanks [@catrielmuller](https://github.com/catrielmuller)! - Streaming message typewriter rendering
+
+- [#3263](https://github.com/Kilo-Org/kilocode/pull/3263) [`97afc88`](https://github.com/Kilo-Org/kilocode/commit/97afc884060d8c9a15fd084bd8be6b1048ba9852) Thanks [@oliver-14203](https://github.com/oliver-14203)! - /theme command - Enjoy the colors! by: oliver-14203
+
+- [#3289](https://github.com/Kilo-Org/kilocode/pull/3289) [`6a64388`](https://github.com/Kilo-Org/kilocode/commit/6a64388f090f44c2b58c3e418da596413f59ef32) Thanks [@catrielmuller](https://github.com/catrielmuller)! - Tasks history support
+
+- [#3497](https://github.com/Kilo-Org/kilocode/pull/3497) [`bb917a2`](https://github.com/Kilo-Org/kilocode/commit/bb917a2962093a54db7ac82f8d8561f87278e5be) Thanks [@catrielmuller](https://github.com/catrielmuller)! - Fix Wellcome Message regression
+
+## 0.1.0
+
+### Minor Changes
+
+- [#3452](https://github.com/Kilo-Org/kilocode/pull/3452) [`127a255`](https://github.com/Kilo-Org/kilocode/commit/127a2551cfd67d57484e59615b13435e7610acce) Thanks [@Sureshkumars](https://github.com/Sureshkumars)! - This PR improves the display of MCP tool requests and responses in the CLI, addressing issues with truncated payloads, poor formatting, and lack of metadata.
+
+    - MCP request arguments were difficult to read (no formatting, no preview mode)
+    - MCP response payloads were displayed as raw text dumps, overwhelming the terminal
+    - No JSON detection or pretty-printing
+    - No metadata about content size or type
+    - Missing error handling for malformed data
+    - No indication when content is truncated/previewed
+
+    Created new `SayMcpServerResponseMessage` component for MCP responses and refactored `AskUseMcpServerMessage` to share formatting logic. Both will make use of newly added utility functions for JSON detection, formatting, and metadata display.
+    `formatContentWithMetadata()` - Detects JSON, formats it, handles preview logic (>20 lines → show 5)
+    `formatJson()` - Pretty-prints JSON with configurable indentation
+    `approximateByteSize()` - Estimates byte size using `str.length * 3`
+    `formatByteSize()`, `buildMetadataString()` - Display helpers
+
+    | before                                                                                                                               | after                                                                                                                               |
+    | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+    | <img width="1511" height="890" alt="before" src="https://github.com/user-attachments/assets/9b57d85c-1846-42d5-ba7b-2511a96e77b2" /> | <img width="1510" height="884" alt="after" src="https://github.com/user-attachments/assets/1a7599ce-4112-40d0-ac47-678d626cb51c" /> |
+
+    Run the KiloCode CLI and let it automatically use any configured MCP server.
+
+### Patch Changes
+
+- [#3463](https://github.com/Kilo-Org/kilocode/pull/3463) [`512f58a`](https://github.com/Kilo-Org/kilocode/commit/512f58aa8b62d4df931d542b2420e292f1a711b6) Thanks [@catrielmuller](https://github.com/catrielmuller)! - Improve low balance message and added a retry action
+
+- [#3468](https://github.com/Kilo-Org/kilocode/pull/3468) [`8f8ef10`](https://github.com/Kilo-Org/kilocode/commit/8f8ef107dd2751e4141473d33e098d6f28faa6d1) Thanks [@catrielmuller](https://github.com/catrielmuller)! - Resolve orphaned partial ask messages
+
+- [#3465](https://github.com/Kilo-Org/kilocode/pull/3465) [`bd0d51e`](https://github.com/Kilo-Org/kilocode/commit/bd0d51e5a43bb3ead7daeb1f45aa1d80cbbb78cc) Thanks [@iscekic](https://github.com/iscekic)! - improves autocomplete behavior
+
 ## 0.0.16
 
 ### Patch Changes

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { MockWorkspace } from "./MockWorkspace"
 import * as vscode from "vscode"
-import { parseGhostResponse } from "../classic-auto-complete/GhostStreamingParser"
+import { parseGhostResponse } from "../classic-auto-complete/HoleFiller"
 import { GhostSuggestionContext, extractPrefixSuffix } from "../types"
 
 vi.mock("vscode", () => ({
@@ -108,19 +108,18 @@ describe("GhostServiceManager", () => {
 			const position = context.range?.start ?? context.document.positionAt(0)
 			const { prefix, suffix } = extractPrefixSuffix(context.document, position)
 			const result = parseGhostResponse("", prefix, suffix)
-			expect(result.suggestions.hasSuggestions()).toBe(false)
+			expect(result.text).toBe("")
 		})
 
-		it("should handle invalid XML format", async () => {
+		it("should handle invalid COMPLETION format", async () => {
 			const initialContent = `console.log('test');`
 			const { context } = await setupTestDocument("invalid.js", initialContent)
 
-			// Test invalid XML format
-			const invalidXML = "This is not a valid XML format"
+			const invalidCOMPLETION = "This is not a valid COMPLETION format"
 			const position = context.range?.start ?? context.document.positionAt(0)
 			const { prefix, suffix } = extractPrefixSuffix(context.document, position)
-			const result = parseGhostResponse(invalidXML, prefix, suffix)
-			expect(result.suggestions.hasSuggestions()).toBe(false)
+			const result = parseGhostResponse(invalidCOMPLETION, prefix, suffix)
+			expect(result.text).toBe("")
 		})
 
 		it("should handle file not found in context", async () => {
@@ -133,15 +132,13 @@ describe("GhostServiceManager", () => {
 				openFiles: [],
 			}
 
-			// Use XML format
-			const xmlResponse = `<change><search><![CDATA[console.log('test');]]></search><replace><![CDATA[// Added comment
-console.log('test');]]></replace></change>`
+			const completionResponse = `<COMPLETION>// Added comment
+console.log('test');</COMPLETION>`
 
 			const position = context.range?.start ?? context.document.positionAt(0)
 			const { prefix, suffix } = extractPrefixSuffix(context.document, position)
-			const result = parseGhostResponse(xmlResponse, prefix, suffix)
-			// Should work with the XML format
-			expect(result.suggestions.hasSuggestions()).toBe(true)
+			const result = parseGhostResponse(completionResponse, prefix, suffix)
+			expect(result.text).toBe("// Added comment\nconsole.log('test');")
 		})
 	})
 

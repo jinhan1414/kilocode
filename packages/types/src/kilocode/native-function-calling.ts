@@ -20,6 +20,8 @@ export const nativeFunctionCallingProviders = [
 	"synthetic",
 	"human-relay",
 	"gemini-cli",
+	"qwen-code",
+	"inception",
 ] satisfies ProviderName[] as ProviderName[]
 
 const modelsDefaultingToJsonKeywords = ["claude-haiku-4.5", "claude-haiku-4-5"]

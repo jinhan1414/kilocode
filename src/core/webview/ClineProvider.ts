@@ -156,6 +156,7 @@ export class ClineProvider
 	private taskCreationCallback: (task: Task) => void
 	private taskEventListeners: WeakMap<Task, Array<() => void>> = new WeakMap()
 	private currentWorkspacePath: string | undefined
+	private autoPurgeScheduler?: any // kilocode_change - (Any) Prevent circular import
 
 	private recentTasksCache?: string[]
 	private workspaceFolders: { name: string; path: string }[] = []
@@ -263,6 +264,7 @@ export class ClineProvider
 			const onTaskUserMessage = (taskId: string) => this.emit(RooCodeEventName.TaskUserMessage, taskId)
 			const onTaskTokenUsageUpdated = (taskId: string, tokenUsage: TokenUsage) =>
 				this.emit(RooCodeEventName.TaskTokenUsageUpdated, taskId, tokenUsage)
+			const onModelChanged = () => this.postStateToWebview() // kilocode_change: Listen for model changes in virtual quota fallback
 
 			// Attach the listeners.
 			instance.on(RooCodeEventName.TaskStarted, onTaskStarted)
@@ -279,6 +281,7 @@ export class ClineProvider
 			instance.on(RooCodeEventName.TaskSpawned, onTaskSpawned)
 			instance.on(RooCodeEventName.TaskUserMessage, onTaskUserMessage)
 			instance.on(RooCodeEventName.TaskTokenUsageUpdated, onTaskTokenUsageUpdated)
+			instance.on("modelChanged", onModelChanged) // kilocode_change: Listen for model changes in virtual quota fallback
 
 			// Store the cleanup functions for later removal.
 			this.taskEventListeners.set(instance, [
@@ -296,6 +299,7 @@ export class ClineProvider
 				() => instance.off(RooCodeEventName.TaskUnpaused, onTaskUnpaused),
 				() => instance.off(RooCodeEventName.TaskSpawned, onTaskSpawned),
 				() => instance.off(RooCodeEventName.TaskTokenUsageUpdated, onTaskTokenUsageUpdated),
+				() => instance.off("modelChanged", onModelChanged), // kilocode_change: Clean up model change listener
 			])
 		}
 
@@ -341,7 +345,52 @@ export class ClineProvider
 		}
 		// kilocode_change: ensure index subscription is updated on workspace folder changes
 		this.updateCodeIndexStatusSubscription()
+
+		// kilocode_change start - Initialize auto-purge scheduler
+		this.initializeAutoPurgeScheduler()
+		// kilocode_change end
 	}
+
+	// kilocode_change start
+	/**
+	 * Initialize the auto-purge scheduler
+	 */
+	private async initializeAutoPurgeScheduler() {
+		try {
+			const { AutoPurgeScheduler } = await import("../../services/auto-purge")
+			this.autoPurgeScheduler = new AutoPurgeScheduler(this.contextProxy.globalStorageUri.fsPath)
+
+			// Start the scheduler with functions to get current settings and task history
+			this.autoPurgeScheduler.start(
+				async () => {
+					const state = await this.getState()
+					return {
+						enabled: state.autoPurgeEnabled ?? false,
+						defaultRetentionDays: state.autoPurgeDefaultRetentionDays ?? 30,
+						favoritedTaskRetentionDays: state.autoPurgeFavoritedTaskRetentionDays ?? null,
+						completedTaskRetentionDays: state.autoPurgeCompletedTaskRetentionDays ?? 30,
+						incompleteTaskRetentionDays: state.autoPurgeIncompleteTaskRetentionDays ?? 7,
+						lastRunTimestamp: state.autoPurgeLastRunTimestamp,
+					}
+				},
+				async () => {
+					return this.getTaskHistory()
+				},
+				() => this.getCurrentTask()?.taskId,
+				async (taskId: string) => {
+					// Remove task from state when purged
+					await this.deleteTaskFromState(taskId)
+				},
+			)
+
+			this.log("Auto-purge scheduler initialized")
+		} catch (error) {
+			this.log(
+				`Failed to initialize auto-purge scheduler: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	}
+	// kilocode_change end
 
 	public async setActiveWorkspacePath(path: string) {
 		this.log(`[Workspace] setActiveWorkspacePath called with: ${path}`)
@@ -680,6 +729,14 @@ export class ClineProvider
 		this.mcpHub = undefined
 		this.marketplaceManager?.cleanup()
 		this.customModesManager?.dispose()
+
+		// kilocode_change start - Stop auto-purge scheduler
+		if (this.autoPurgeScheduler) {
+			this.autoPurgeScheduler.stop()
+			this.autoPurgeScheduler = undefined
+		}
+		// kilocode_change end
+
 		this.log("Disposed all disposables")
 		ClineProvider.activeInstances.delete(this)
 
@@ -1166,7 +1223,6 @@ ${prompt}
 					<link href="${codiconsUri}" rel="stylesheet" />
 					<script nonce="${nonce}">
 						window.IMAGES_BASE_URI = "${imagesUri}"
-						window.ICONS_BASE_URI = "${iconsUri}" // kilocode_change
 						window.AUDIO_BASE_URI = "${audioUri}"
 						window.MATERIAL_ICONS_BASE_URI = "${materialIconsUri}"
 						window.KILOCODE_BACKEND_BASE_URL = "${process.env.KILOCODE_BACKEND_BASE_URL ?? ""}"
@@ -1243,7 +1299,6 @@ ${prompt}
 			<link href="${codiconsUri}" rel="stylesheet" />
 			<script nonce="${nonce}">
 				window.IMAGES_BASE_URI = "${imagesUri}"
-				window.ICONS_BASE_URI = "${iconsUri}" // kilocode_change
 				window.AUDIO_BASE_URI = "${audioUri}"
 				window.MATERIAL_ICONS_BASE_URI = "${materialIconsUri}"
 				window.KILOCODE_BACKEND_BASE_URL = "${process.env.KILOCODE_BACKEND_BASE_URL ?? ""}"
@@ -2015,6 +2070,13 @@ ${prompt}
 			yoloMode, // kilocode_change
 		} = await this.getState()
 
+		// kilocode_change start: Get active model for virtual quota fallback UI display
+		const virtualQuotaActiveModel =
+			apiConfiguration?.apiProvider === "virtual-quota-fallback" && this.getCurrentTask()
+				? this.getCurrentTask()!.api.getModel()
+				: undefined
+		// kilocode_change end
+
 		let cloudOrganizations: CloudOrganizationMembership[] = []
 
 		try {
@@ -2192,10 +2254,25 @@ ${prompt}
 			taskSyncEnabled,
 			remoteControlEnabled,
 			openRouterImageApiKey,
+			// kilocode_change start - Auto-purge settings
+			autoPurgeEnabled: await this.getState().then((s) => s.autoPurgeEnabled),
+			autoPurgeDefaultRetentionDays: await this.getState().then((s) => s.autoPurgeDefaultRetentionDays),
+			autoPurgeFavoritedTaskRetentionDays: await this.getState().then(
+				(s) => s.autoPurgeFavoritedTaskRetentionDays,
+			),
+			autoPurgeCompletedTaskRetentionDays: await this.getState().then(
+				(s) => s.autoPurgeCompletedTaskRetentionDays,
+			),
+			autoPurgeIncompleteTaskRetentionDays: await this.getState().then(
+				(s) => s.autoPurgeIncompleteTaskRetentionDays,
+			),
+			autoPurgeLastRunTimestamp: await this.getState().then((s) => s.autoPurgeLastRunTimestamp),
+			// kilocode_change end
 			kiloCodeImageApiKey,
 			openRouterImageGenerationSelectedModel,
 			openRouterUseMiddleOutTransform,
 			featureRoomoteControlEnabled,
+			virtualQuotaActiveModel, // kilocode_change: Include virtual quota active model in state
 		}
 	}
 
@@ -2377,6 +2454,14 @@ ${prompt}
 				enableQuickInlineTaskKeybinding: true,
 				enableSmartInlineTaskKeybinding: true,
 			},
+			// kilocode_change end
+			// kilocode_change start - Auto-purge settings
+			autoPurgeEnabled: stateValues.autoPurgeEnabled ?? false,
+			autoPurgeDefaultRetentionDays: stateValues.autoPurgeDefaultRetentionDays ?? 30,
+			autoPurgeFavoritedTaskRetentionDays: stateValues.autoPurgeFavoritedTaskRetentionDays ?? null,
+			autoPurgeCompletedTaskRetentionDays: stateValues.autoPurgeCompletedTaskRetentionDays ?? 30,
+			autoPurgeIncompleteTaskRetentionDays: stateValues.autoPurgeIncompleteTaskRetentionDays ?? 7,
+			autoPurgeLastRunTimestamp: stateValues.autoPurgeLastRunTimestamp,
 			// kilocode_change end
 			experiments: stateValues.experiments ?? experimentDefault,
 			autoApprovalEnabled: stateValues.autoApprovalEnabled ?? true,
