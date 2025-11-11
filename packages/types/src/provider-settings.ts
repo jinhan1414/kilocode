@@ -827,7 +827,6 @@ export const MODELS_BY_PROVIDER: Record<
 	openai: { id: "openai", label: "OpenAI Compatible", models: [] }, // kilocode_change
 
 	// kilocode_change start
-	ovhcloud: { id: "ovhcloud", label: "OVHcloud AI Endpoints", models: [] },
 	inception: { id: "inception", label: "Inception", models: [] },
 	kilocode: { id: "kilocode", label: "Kilocode", models: [] },
 	"kilocode-openrouter": { id: "kilocode-openrouter", label: "Kilocode", models: [] }, // temporarily needed to satisfy because we're using 2 inconsistent names apparently
