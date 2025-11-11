@@ -1082,7 +1082,13 @@ export class WorkspaceAPI {
 		// In CLI mode, we need to apply the edits to the actual files
 		try {
 			for (const [uri, edits] of edit.entries()) {
-				const filePath = uri.fsPath
+				let filePath = uri.fsPath
+
+				// On Windows, strip leading slash if present (e.g., /C:/path becomes C:/path)
+				if (process.platform === "win32" && filePath.startsWith("/")) {
+					filePath = filePath.slice(1)
+				}
+
 				let content = ""
 
 				// Read existing content if file exists

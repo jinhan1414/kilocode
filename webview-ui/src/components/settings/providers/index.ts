@@ -30,6 +30,7 @@ export { GeminiCli } from "./GeminiCli"
 export { VirtualQuotaFallbackProvider } from "./VirtualQuotaFallbackProvider"
 export { Inception } from "./Inception"
 export { Synthetic } from "./Synthetic"
+export { MiniMax } from "./MiniMax"
 // kilocode_change end
 export { ZAi } from "./ZAi"
 export { LiteLLM } from "./LiteLLM"

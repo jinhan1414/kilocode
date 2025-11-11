@@ -25,6 +25,8 @@ export class ExtensionHost extends EventEmitter {
 	private extensionAPI: any = null
 	private vscodeAPI: any = null
 	private webviewProviders: Map<string, any> = new Map()
+	private webviewProviderReady: Promise<void> | null = null
+	private webviewProviderReadyResolve: (() => void) | null = null
 	private originalConsole: {
 		log: typeof console.log
 		error: typeof console.error
@@ -49,6 +51,11 @@ export class ExtensionHost extends EventEmitter {
 		// Increase max listeners to avoid warnings in tests
 		process.setMaxListeners(20)
 		this.setupGlobalErrorHandlers()
+
+		// Create a promise that will be resolved when the webview provider is registered
+		this.webviewProviderReady = new Promise((resolve) => {
+			this.webviewProviderReadyResolve = resolve
+		})
 	}
 
 	/**
@@ -271,6 +278,16 @@ export class ExtensionHost extends EventEmitter {
 			if (!this.isActivated) {
 				logs.warn("Extension not activated, ignoring message", "ExtensionHost")
 				return
+			}
+
+			// Wait for webview provider to be ready before processing messages
+			if (this.webviewProviderReady) {
+				logs.debug(
+					`Waiting for webview provider to be ready before processing: ${message.type}`,
+					"ExtensionHost",
+				)
+				await this.webviewProviderReady
+				logs.debug(`Webview provider ready, processing message: ${message.type}`, "ExtensionHost")
 			}
 
 			// Track extension message sent
@@ -888,7 +905,15 @@ export class ExtensionHost extends EventEmitter {
 	// Methods for webview provider registration (called from VSCode API mock)
 	registerWebviewProvider(viewId: string, provider: any): void {
 		this.webviewProviders.set(viewId, provider)
-		logs.debug(`Registered webview provider: ${viewId}`, "ExtensionHost")
+		logs.info(`Webview provider registered: ${viewId}`, "ExtensionHost")
+
+		// Resolve the ready promise to unblock any waiting messages
+		if (this.webviewProviderReadyResolve) {
+			this.webviewProviderReadyResolve()
+			this.webviewProviderReadyResolve = null
+			this.webviewProviderReady = null
+			logs.info("Webview provider ready signal sent", "ExtensionHost")
+		}
 	}
 
 	unregisterWebviewProvider(viewId: string): void {

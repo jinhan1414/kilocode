@@ -9,7 +9,7 @@ import { MockTextDocument } from "../../../mocking/MockTextDocument"
 import { GhostModel } from "../../GhostModel"
 import { GhostContext } from "../../GhostContext"
 
-// Mock vscode InlineCompletionTriggerKind enum
+// Mock vscode InlineCompletionTriggerKind enum and event listeners
 vi.mock("vscode", async () => {
 	const actual = await vi.importActual<typeof vscode>("vscode")
 	return {
@@ -17,6 +17,14 @@ vi.mock("vscode", async () => {
 		InlineCompletionTriggerKind: {
 			Invoke: 0,
 			Automatic: 1,
+		},
+		window: {
+			...actual.window,
+			onDidChangeTextEditorSelection: vi.fn(() => ({ dispose: vi.fn() })),
+		},
+		workspace: {
+			...actual.workspace,
+			onDidChangeTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
 		},
 	}
 })
@@ -288,6 +296,7 @@ describe("GhostInlineCompletionProvider", () => {
 	let mockCostTrackingCallback: CostTrackingCallback
 	let mockGhostContext: GhostContext
 	let mockSettings: { enableAutoTrigger: boolean } | null
+	let mockContextProvider: any
 
 	beforeEach(() => {
 		mockDocument = new MockTextDocument(vscode.Uri.file("/test.ts"), "const x = 1\nconst y = 2")
@@ -298,6 +307,20 @@ describe("GhostInlineCompletionProvider", () => {
 		} as vscode.InlineCompletionContext
 		mockToken = {} as vscode.CancellationToken
 		mockSettings = { enableAutoTrigger: true }
+
+		// Create mock IDE for tracking services
+		const mockIde = {
+			getWorkspaceDirs: vi.fn().mockResolvedValue([]),
+			getOpenFiles: vi.fn().mockResolvedValue([]),
+			readFile: vi.fn().mockResolvedValue(""),
+			// Add other methods as needed by RecentlyVisitedRangesService and RecentlyEditedTracker
+		}
+
+		// Create mock context provider with IDE
+		mockContextProvider = {
+			getIde: vi.fn().mockReturnValue(mockIde),
+			getFormattedContext: vi.fn().mockResolvedValue(""),
+		}
 
 		// Create mock dependencies
 		mockModel = {
@@ -323,6 +346,7 @@ describe("GhostInlineCompletionProvider", () => {
 			mockCostTrackingCallback,
 			mockGhostContext,
 			() => mockSettings,
+			mockContextProvider,
 		)
 	})
 

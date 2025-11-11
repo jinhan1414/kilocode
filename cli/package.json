@@ -1,6 +1,6 @@
 {
 	"name": "@kilocode/cli",
-	"version": "0.1.2",
+	"version": "0.3.0",
 	"description": "Terminal User Interface for Kilo Code",
 	"type": "module",
 	"main": "dist/index.js",
@@ -23,7 +23,7 @@
 		"logs": "clear && tail -f ~/.kilocode/cli/logs/cli.txt",
 		"logs:clear": "rimraf ~/.kilocode/cli/logs/* && touch ~/.kilocode/cli/logs/cli.txt",
 		"clean:kilocode": "npx del-cli ./dist/kilocode --force && npx mkdirp ./dist/kilocode",
-		"copy:kilocode": "npx cpy '../bin-unpacked/extension/**' './dist/kilocode' --parents",
+		"copy:kilocode": "node scripts/copy-extension.mjs",
 		"lint": "eslint .",
 		"changeset:version": "jq --arg version \"$(jq -r '.version' package.json)\" '.version = $version' package.dist.json > tmp.json && mv tmp.json package.dist.json && prettier --write package.dist.json"
 	},
@@ -102,7 +102,7 @@
 		"posthog-node": "^4.2.1",
 		"pretty-bytes": "^7.0.0",
 		"proper-lockfile": "^4.1.2",
-		"ps-tree": "^1.2.0",
+		"ps-list": "^8.1.1",
 		"puppeteer-chromium-resolver": "^24.0.2",
 		"puppeteer-core": "^23.4.0",
 		"react": "^19.2.0",
@@ -117,6 +117,7 @@
 		"simple-git": "^3.27.0",
 		"socket.io-client": "^4.8.1",
 		"sound-play": "^1.1.0",
+		"sqlite3": "^5.1.7",
 		"stream-json": "^1.8.0",
 		"string-width": "^8.1.0",
 		"strip-ansi": "^7.1.0",

@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI from "openai"
 import type { ToolUseStyle } from "@roo-code/types"
+import { consolidateReasoningDetails, ReasoningDetail } from "./kilocode/reasoning-details"
 
 export function convertToOpenAiMessages(
 	anthropicMessages: Anthropic.Messages.MessageParam[],
@@ -172,8 +173,20 @@ export function convertToOpenAiMessages(
 				if (toolStyle === "xml") {
 					// In XML mode, convert tool_use to text format
 					let allContent: string[] = []
+					const reasoningDetails = new Array<ReasoningDetail>() // kilocode_change
 
 					if (nonToolMessages.length > 0) {
+						// kilocode_change start
+						nonToolMessages.forEach((part) => {
+							if (part.type === "text" && "reasoning_details" in part && part.reasoning_details) {
+								if (Array.isArray(part.reasoning_details)) {
+									reasoningDetails.push(...part.reasoning_details)
+								} else {
+									reasoningDetails.push(part.reasoning_details as ReasoningDetail)
+								}
+							}
+						})
+						// kilocode_change end
 						allContent.push(
 							nonToolMessages
 								.map((part) => {
@@ -203,7 +216,20 @@ export function convertToOpenAiMessages(
 				} else {
 					// In JSON mode (or default), use native tool format
 					let content: string | undefined
+					const reasoningDetails = new Array<ReasoningDetail>() // kilocode_change
+
 					if (nonToolMessages.length > 0) {
+						// kilocode_change start
+						nonToolMessages.forEach((part) => {
+							if (part.type === "text" && "reasoning_details" in part && part.reasoning_details) {
+								if (Array.isArray(part.reasoning_details)) {
+									reasoningDetails.push(...part.reasoning_details)
+								} else {
+									reasoningDetails.push(part.reasoning_details as ReasoningDetail)
+								}
+							}
+						})
+						// kilocode_change end
 						content = nonToolMessages
 							.map((part) => {
 								if (part.type === "image") {
@@ -234,6 +260,11 @@ export function convertToOpenAiMessages(
 						content,
 						// Cannot be an empty array. API expects an array with minimum length 1, and will respond with an error if it's empty
 						tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
+						// kilocode_change start
+						// @ts-ignore-next-line: property is OpenRouter-specific
+						reasoning_details:
+							reasoningDetails.length > 0 ? consolidateReasoningDetails(reasoningDetails) : undefined,
+						// kilocode_change end
 					})
 				}
 			}

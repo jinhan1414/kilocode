@@ -21,6 +21,8 @@ import {
 	syntheticDefaultModelId,
 	ovhCloudAiEndpointsDefaultModelId,
 	inceptionDefaultModelId,
+	minimaxDefaultModelId,
+	minimaxModels,
 	// kilocode_change end
 	mistralDefaultModelId,
 	mistralModels,
@@ -464,6 +466,11 @@ function getSelectedModel({
 		case "ovhcloud": {
 			const id = apiConfiguration.ovhCloudAiEndpointsModelId ?? ovhCloudAiEndpointsDefaultModelId
 			const info = routerModels.ovhcloud[id]
+			return { id, info }
+		}
+		case "minimax": {
+			const id = apiConfiguration.apiModelId ?? minimaxDefaultModelId
+			const info = minimaxModels[id as keyof typeof minimaxModels]
 			return { id, info }
 		}
 		case "inception": {

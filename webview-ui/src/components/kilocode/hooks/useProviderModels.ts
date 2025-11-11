@@ -50,6 +50,8 @@ import {
 	cerebrasModels,
 	cerebrasDefaultModelId,
 	ovhCloudAiEndpointsDefaultModelId, // kilocode_change
+	minimaxModels,
+	minimaxDefaultModelId,
 	inceptionDefaultModelId, // kilocode_change
 } from "@roo-code/types"
 import type { ModelRecord, RouterModels } from "@roo/api"
@@ -287,6 +289,12 @@ export const getModelsByProvider = ({
 			return {
 				models: routerModels.deepinfra,
 				defaultModel: deepInfraDefaultModelId,
+			}
+		}
+		case "minimax": {
+			return {
+				models: minimaxModels,
+				defaultModel: minimaxDefaultModelId,
 			}
 		}
 		default:

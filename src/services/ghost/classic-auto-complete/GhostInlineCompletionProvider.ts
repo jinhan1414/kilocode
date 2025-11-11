@@ -1,9 +1,12 @@
 import * as vscode from "vscode"
 import { extractPrefixSuffix, GhostSuggestionContext, contextToAutocompleteInput } from "../types"
+import { GhostContextProvider } from "./GhostContextProvider"
 import { parseGhostResponse, HoleFiller, FillInAtCursorSuggestion } from "./HoleFiller"
 import { GhostModel } from "../GhostModel"
 import { GhostContext } from "../GhostContext"
 import { ApiStreamChunk } from "../../../api/transform/stream"
+import { RecentlyVisitedRangesService } from "../../continuedev/core/vscode-test-harness/src/autocomplete/RecentlyVisitedRangesService"
+import { RecentlyEditedTracker } from "../../continuedev/core/vscode-test-harness/src/autocomplete/recentlyEdited"
 import type { GhostServiceSettings } from "@roo-code/types"
 import { refuseUselessSuggestion } from "./uselessSuggestionFilter"
 
@@ -76,18 +79,30 @@ export class GhostInlineCompletionProvider implements vscode.InlineCompletionIte
 	private costTrackingCallback: CostTrackingCallback
 	private ghostContext: GhostContext
 	private getSettings: () => GhostServiceSettings | null
+	private recentlyVisitedRangesService: RecentlyVisitedRangesService
+	private recentlyEditedTracker: RecentlyEditedTracker
 
 	constructor(
 		model: GhostModel,
 		costTrackingCallback: CostTrackingCallback,
 		ghostContext: GhostContext,
 		getSettings: () => GhostServiceSettings | null,
+		contextProvider?: GhostContextProvider,
 	) {
 		this.model = model
 		this.costTrackingCallback = costTrackingCallback
 		this.ghostContext = ghostContext
 		this.getSettings = getSettings
-		this.holeFiller = new HoleFiller()
+		this.holeFiller = new HoleFiller(contextProvider)
+
+		// Get IDE from context provider if available
+		const ide = contextProvider?.getIde()
+		if (ide) {
+			this.recentlyVisitedRangesService = new RecentlyVisitedRangesService(ide)
+			this.recentlyEditedTracker = new RecentlyEditedTracker(ide)
+		} else {
+			throw new Error("GhostContextProvider with IDE is required for tracking services")
+		}
 	}
 
 	public updateSuggestions(fillInAtCursor: FillInAtCursorSuggestion): void {
@@ -120,7 +135,16 @@ export class GhostInlineCompletionProvider implements vscode.InlineCompletionIte
 	public async getFromLLM(context: GhostSuggestionContext, model: GhostModel): Promise<LLMRetrievalResult> {
 		this.isRequestCancelled = false
 
-		const autocompleteInput = contextToAutocompleteInput(context)
+		const recentlyVisitedRanges = this.recentlyVisitedRangesService.getSnippets()
+		const recentlyEditedRanges = await this.recentlyEditedTracker.getRecentlyEditedRanges()
+
+		const enrichedContext: GhostSuggestionContext = {
+			...context,
+			recentlyVisitedRanges,
+			recentlyEditedRanges,
+		}
+
+		const autocompleteInput = contextToAutocompleteInput(enrichedContext)
 
 		const position = context.range?.start ?? context.document.positionAt(0)
 		const { prefix, suffix } = extractPrefixSuffix(context.document, position)
@@ -140,7 +164,12 @@ export class GhostInlineCompletionProvider implements vscode.InlineCompletionIte
 			}
 		}
 
-		const { systemPrompt, userPrompt } = this.holeFiller.getPrompts(autocompleteInput, prefix, suffix, languageId)
+		const { systemPrompt, userPrompt } = await this.holeFiller.getPrompts(
+			autocompleteInput,
+			prefix,
+			suffix,
+			languageId,
+		)
 
 		if (this.isRequestCancelled) {
 			return {
@@ -203,11 +232,13 @@ export class GhostInlineCompletionProvider implements vscode.InlineCompletionIte
 		}
 	}
 
-	/**
-	 * Cancel any ongoing LLM request
-	 */
 	public cancelRequest(): void {
 		this.isRequestCancelled = true
+	}
+
+	public dispose(): void {
+		this.recentlyVisitedRangesService.dispose()
+		this.recentlyEditedTracker.dispose()
 	}
 
 	public async provideInlineCompletionItems(

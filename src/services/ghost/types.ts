@@ -1,4 +1,6 @@
 import * as vscode from "vscode"
+import type { AutocompleteCodeSnippet } from "../continuedev/core/autocomplete/snippets/types"
+import type { RecentlyEditedRange as ContinuedevRecentlyEditedRange } from "../continuedev/core/autocomplete/util/types"
 
 /**
  * Represents the type of user action performed on a document
@@ -43,6 +45,8 @@ export interface GhostSuggestionContext {
 	userInput?: string
 	recentOperations?: UserAction[] // Stores meaningful user actions instead of raw diff
 	diagnostics?: vscode.Diagnostic[] // Document diagnostics (errors, warnings, etc.)
+	recentlyVisitedRanges?: AutocompleteCodeSnippet[] // Recently visited code snippets for context
+	recentlyEditedRanges?: RecentlyEditedRange[] // Recently edited ranges for context
 }
 
 // ============================================================================
@@ -113,12 +117,9 @@ export interface RecentlyEditedRange extends RangeInFile {
 
 /**
  * Code snippet for autocomplete context
- * Duplicated from continuedev/core to avoid coupling
+ * Re-exported from continuedev/core for compatibility
  */
-export interface AutocompleteCodeSnippet extends RangeInFile {
-	content: string
-	score?: number
-}
+export type { AutocompleteCodeSnippet }
 
 /**
  * Input for autocomplete request (CompletionProvider-compatible)
@@ -224,8 +225,12 @@ export function contextToAutocompleteInput(context: GhostSuggestionContext): Aut
 	const position = context.range?.start ?? context.document.positionAt(0)
 	const { prefix, suffix } = extractPrefixSuffix(context.document, position)
 
-	// Convert recent operations to recently edited ranges
-	const recentlyEditedRanges: RecentlyEditedRange[] =
+	// Get recently visited and edited ranges from context, with empty arrays as fallback
+	const recentlyVisitedRanges = context.recentlyVisitedRanges ?? []
+	const recentlyEditedRanges = context.recentlyEditedRanges ?? []
+
+	// Merge recently edited ranges from context operations with tracked ranges
+	const contextEditedRanges: RecentlyEditedRange[] =
 		context.recentOperations?.map((op) => {
 			const range: Range = op.lineRange
 				? {
@@ -246,13 +251,16 @@ export function contextToAutocompleteInput(context: GhostSuggestionContext): Aut
 			}
 		}) ?? []
 
+	// Combine tracked recently edited ranges with context operations
+	const allRecentlyEditedRanges = [...recentlyEditedRanges, ...contextEditedRanges]
+
 	return {
 		isUntitledFile: context.document.isUntitled,
 		completionId: crypto.randomUUID(),
 		filepath: context.document.uri.fsPath,
 		pos: vscodePositionToPosition(position),
-		recentlyVisitedRanges: [], // Not tracked in current Ghost implementation
-		recentlyEditedRanges,
+		recentlyVisitedRanges,
+		recentlyEditedRanges: allRecentlyEditedRanges,
 		manuallyPassFileContents: undefined,
 		manuallyPassPrefix: prefix,
 	}

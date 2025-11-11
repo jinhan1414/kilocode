@@ -33,6 +33,9 @@ import {
 	// kilocode_change start
 	VirtualQuotaFallbackHandler,
 	GeminiCliHandler,
+	SyntheticHandler,
+	OVHcloudAIEndpointsHandler,
+	MiniMaxHandler,
 	// kilocode_change end
 	ClaudeCodeHandler,
 	QwenCodeHandler,
@@ -41,12 +44,10 @@ import {
 	DoubaoHandler,
 	ZAiHandler,
 	FireworksHandler,
-	SyntheticHandler, // kilocode_change
 	RooHandler,
 	FeatherlessHandler,
 	VercelAiGatewayHandler,
 	DeepInfraHandler,
-	OVHcloudAIEndpointsHandler, // kilocode_change
 } from "./providers"
 // kilocode_change start
 import { KilocodeOpenrouterHandler } from "./providers/kilocode-openrouter"
@@ -198,6 +199,8 @@ export function buildApiHandler(configuration: ProviderSettings): ApiHandler {
 			return new InceptionLabsHandler(options)
 		case "ovhcloud":
 			return new OVHcloudAIEndpointsHandler(options)
+		case "minimax":
+			return new MiniMaxHandler(options)
 		// kilocode_change end
 		case "io-intelligence":
 			return new IOIntelligenceHandler(options)

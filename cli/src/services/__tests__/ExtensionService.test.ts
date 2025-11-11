@@ -95,7 +95,16 @@ describe("ExtensionService", () => {
 
 		// Create a mock extension module
 		mockExtensionModule = {
-			activate: vi.fn(async () => {
+			activate: vi.fn(async (context) => {
+				// Register a mock webview provider immediately to prevent hanging
+				// This simulates the extension registering its provider during activation
+				if ((global as any).__extensionHost) {
+					const mockProvider = {
+						handleCLIMessage: vi.fn(async () => {}),
+					}
+					;(global as any).__extensionHost.registerWebviewProvider("kilo-code.SidebarProvider", mockProvider)
+				}
+
 				// Return a mock API
 				return {
 					getState: vi.fn(() => ({
