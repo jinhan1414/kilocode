@@ -688,8 +688,6 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	// kilocode_change start
 	minimax: "apiModelId",
 	synthetic: "apiModelId",
-	ovhcloud: "ovhCloudAiEndpointsModelId",
-	inception: "inceptionLabsModelId",
 	// kilocode_change end
 	groq: "apiModelId",
 	chutes: "apiModelId",
@@ -839,7 +837,6 @@ export const MODELS_BY_PROVIDER: Record<
 	openrouter: { id: "openrouter", label: "OpenRouter", models: [] },
 	requesty: { id: "requesty", label: "Requesty", models: [] },
 	unbound: { id: "unbound", label: "Unbound", models: [] },
-	ovhcloud: { id: "ovhcloud", label: "OVHcloud AI Endpoints", models: [] }, // kilocode_change
 	openai: { id: "openai", label: "OpenAI Compatible", models: [] }, // kilocode_change
 
 	// kilocode_change start
