@@ -54,6 +54,7 @@ export const dynamicProviders = [
 	"gemini",
 	"openai", // kilocode_change: moved from customProviders to support dynamic model list
 	"inception",
+	"synthetic",
 	// kilocode_change end
 	"deepinfra",
 	"io-intelligence",

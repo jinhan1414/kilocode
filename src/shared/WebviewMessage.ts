@@ -318,6 +318,7 @@ export interface WebviewMessage {
 		| "editQueuedMessage"
 		| "dismissUpsell"
 		| "getDismissedUpsells"
+		| "requestManagedIndexerState" // kilocode_change
 	text?: string
 	path?: string
 	editedMessageContent?: string

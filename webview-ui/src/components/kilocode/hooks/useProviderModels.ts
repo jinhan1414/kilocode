@@ -36,7 +36,6 @@ import {
 	doubaoDefaultModelId,
 	fireworksModels,
 	fireworksDefaultModelId,
-	syntheticModels,
 	syntheticDefaultModelId,
 	ioIntelligenceDefaultModelId,
 	moonshotModels,
@@ -234,7 +233,7 @@ export const getModelsByProvider = ({
 		// kilocode_change start
 		case "synthetic": {
 			return {
-				models: syntheticModels,
+				models: routerModels.synthetic,
 				defaultModel: syntheticDefaultModelId,
 			}
 		}
@@ -307,6 +306,7 @@ export const useProviderModels = (apiConfiguration?: ProviderSettings) => {
 		chutesApiKey: apiConfiguration?.chutesApiKey,
 		geminiApiKey: apiConfiguration?.geminiApiKey,
 		googleGeminiBaseUrl: apiConfiguration?.googleGeminiBaseUrl,
+		syntheticApiKey: apiConfiguration?.syntheticApiKey, // kilocode_change
 		openAiApiKey: apiConfiguration?.openAiApiKey, // kilocode_change: 添加 openai 参数以支持动态模型刷新
 		openAiBaseUrl: apiConfiguration?.openAiBaseUrl, // kilocode_change
 		openAiHeaders: apiConfiguration?.openAiHeaders, // kilocode_change

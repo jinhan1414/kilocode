@@ -89,6 +89,7 @@ import { seeNewChanges } from "../checkpoints/kilocode/seeNewChanges" // kilocod
 import { getTaskHistory } from "../../shared/kilocode/getTaskHistory" // kilocode_change
 import { fetchAndRefreshOrganizationModesOnStartup, refreshOrganizationModes } from "./kiloWebviewMessgeHandlerHelpers"
 import { AutoPurgeScheduler } from "../../services/auto-purge" // kilocode_change
+import { ManagedIndexer } from "../../services/code-index/managed/ManagedIndexer"
 
 export const webviewMessageHandler = async (
 	provider: ClineProvider,
@@ -827,6 +828,7 @@ export const webviewMessageHandler = async (
 						ollama: {},
 						lmstudio: {},
 						roo: {},
+						synthetic: {}, // kilocode_change
 						chutes: {},
 					}
 
@@ -917,6 +919,7 @@ export const webviewMessageHandler = async (
 						baseUrl: apiConfiguration.inceptionLabsBaseUrl,
 					},
 				},
+				{ key: "synthetic", options: { provider: "synthetic", apiKey: apiConfiguration.syntheticApiKey } }, // kilocode_change
 				{
 					key: "roo",
 					options: {
@@ -4054,5 +4057,31 @@ export const webviewMessageHandler = async (
 			})
 			break
 		}
+		// kilocode_change start - ManagedIndexer state
+		case "requestManagedIndexerState": {
+			try {
+				const state = ManagedIndexer.getInstance()?.getWorkspaceFolderStateSnapshot() || []
+				await provider.postMessageToWebview({
+					type: "managedIndexerState",
+					managedIndexerState: state,
+				})
+			} catch (error) {
+				provider.log(
+					`Error getting managed indexer state: ${error instanceof Error ? error.message : String(error)}`,
+				)
+				await provider.postMessageToWebview({
+					type: "managedIndexerState",
+					managedIndexerState: [],
+				})
+			}
+			break
+		}
+
+		// we're going to delete this message at some point and use apiConfiguration
+		// probably. So casting as any as to not define a more permanent type
+		case "requestManagedIndexerEnabled" as any: {
+			ManagedIndexer.getInstance()?.sendEnabledStateToWebview()
+		}
+		// kilocode_change end
 	}
 }

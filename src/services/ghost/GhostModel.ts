@@ -1,4 +1,4 @@
-import { modelIdKeysByProvider, ProviderSettingsEntry } from "@roo-code/types"
+import { modelIdKeysByProvider, ProviderSettingsEntry, ProviderName } from "@roo-code/types"
 import { ApiHandler, buildApiHandler } from "../../api"
 import { ProviderSettingsManager } from "../../core/config/ProviderSettingsManager"
 import { OpenRouterHandler } from "../../api/providers"
@@ -6,9 +6,17 @@ import { CompletionUsage } from "../../api/providers/openrouter"
 import { ApiStreamChunk } from "../../api/transform/stream"
 import { AUTOCOMPLETE_PROVIDER_MODELS, checkKilocodeBalance } from "./utils/kilocode-utils"
 import { KilocodeOpenrouterHandler } from "../../api/providers/kilocode-openrouter"
+import { PROVIDERS } from "../../../webview-ui/src/components/settings/constants"
+
+// Convert PROVIDERS array to a lookup map for display names
+const PROVIDER_DISPLAY_NAMES = Object.fromEntries(PROVIDERS.map(({ value, label }) => [value, label])) as Record<
+	ProviderName,
+	string
+>
 
 export class GhostModel {
 	private apiHandler: ApiHandler | null = null
+	private currentProvider: ProviderName | null = null
 	public loaded = false
 
 	constructor(apiHandler: ApiHandler | null = null) {
@@ -19,6 +27,7 @@ export class GhostModel {
 	}
 	private cleanup(): void {
 		this.apiHandler = null
+		this.currentProvider = null
 		this.loaded = false
 	}
 
@@ -40,6 +49,7 @@ export class GhostModel {
 			}
 
 			this.apiHandler = buildApiHandler({ ...profile, [modelIdKeysByProvider[provider]]: model })
+			this.currentProvider = provider
 
 			if (this.apiHandler instanceof OpenRouterHandler) {
 				await this.apiHandler.fetchModel()
@@ -182,14 +192,8 @@ export class GhostModel {
 	}
 
 	public getProviderDisplayName(): string | undefined {
-		if (!this.apiHandler) return undefined
-
-		const handler = this.apiHandler as any
-		if (handler.providerName && typeof handler.providerName === "string") {
-			return handler.providerName
-		} else {
-			return undefined
-		}
+		if (!this.currentProvider) return undefined
+		return PROVIDER_DISPLAY_NAMES[this.currentProvider]
 	}
 
 	public getRolloutHash_IfLoggedInToKilo(): number | undefined {

@@ -129,6 +129,7 @@ import { isAnyRecognizedKiloCodeError, isPaymentRequiredError } from "../../shar
 import { getAppUrl } from "@roo-code/types"
 import { maybeRemoveReasoningDetails_kilocode, ReasoningDetail } from "../../api/transform/kilocode/reasoning-details"
 import { mergeApiMessages } from "./kilocode"
+import { mergeEnvironmentDetailsIntoUserContent } from "../environment/kilocode/mergeEnvironmentDetailsIntoUserContent"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
 const DEFAULT_USAGE_COLLECTION_TIMEOUT_MS = 5000 // 5 seconds
@@ -1999,11 +2000,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			)
 
 			// Add environment details as its own text block, separate from tool
-			// results, only if it doesn't already exist
-			const finalUserContent = hasEnvironmentDetails
-				? parsedUserContent
-				: [...parsedUserContent, { type: "text" as const, text: environmentDetails }]
-
+			// results.
+			const finalUserContent = mergeEnvironmentDetailsIntoUserContent(parsedUserContent, environmentDetails) // kilocode_change: support interleaved thinking for environment details
 			await this.addToApiConversationHistory({ role: "user", content: finalUserContent })
 			TelemetryService.instance.captureConversationMessage(this.taskId, "user")
 
