@@ -1,7 +1,7 @@
-import React, { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react" // kilocode_change Fragment
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { convertHeadersToObject } from "./utils/headers"
 import { useDebounce } from "react-use"
-import { VSCodeLink, VSCodeButton } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 // import { ExternalLinkIcon } from "@radix-ui/react-icons" // kilocode_change
 
 import {
@@ -23,7 +23,6 @@ import {
 	deepSeekDefaultModelId,
 	moonshotDefaultModelId,
 	// kilocode_change start
-	minimaxDefaultModelId,
 	syntheticDefaultModelId,
 	ovhCloudAiEndpointsDefaultModelId,
 	inceptionDefaultModelId,
@@ -45,6 +44,7 @@ import {
 	rooDefaultModelId,
 	vercelAiGatewayDefaultModelId,
 	deepInfraDefaultModelId,
+	minimaxDefaultModelId,
 } from "@roo-code/types"
 
 import { vscode } from "@src/utils/vscode"
@@ -95,6 +95,7 @@ import {
 	OpenRouter,
 	QwenCode,
 	Requesty,
+	Roo,
 	SambaNova,
 	Unbound,
 	Vertex,
@@ -106,13 +107,13 @@ import {
 	Synthetic,
 	OvhCloudAiEndpoints,
 	Inception,
-	MiniMax,
 	// kilocode_change end
 	ZAi,
 	Fireworks,
 	Featherless,
 	VercelAiGateway,
 	DeepInfra,
+	MiniMax,
 } from "./providers"
 
 import { MODELS_BY_PROVIDER, PROVIDERS } from "./constants"
@@ -121,6 +122,7 @@ import { inputEventTransform, noTransform } from "./transforms"
 import { ModelInfoView } from "./ModelInfoView"
 import { ApiErrorMessage } from "./ApiErrorMessage"
 import { ThinkingBudget } from "./ThinkingBudget"
+import { SimpleThinkingBudget } from "./SimpleThinkingBudget"
 import { Verbosity } from "./Verbosity"
 import { DiffSettingsControl } from "./DiffSettingsControl"
 import { TodoListSettingsControl } from "./TodoListSettingsControl"
@@ -285,7 +287,8 @@ const ApiOptions = ({
 			} else if (
 				selectedProvider === "litellm" ||
 				selectedProvider === "deepinfra" ||
-				selectedProvider === "chutes" // kilocode_change
+				selectedProvider === "chutes" || // kilocode_change
+				selectedProvider === "roo"
 			) {
 				vscode.postMessage({ type: "requestRouterModels" })
 			}
@@ -395,6 +398,7 @@ const ApiOptions = ({
 				deepseek: { field: "apiModelId", default: deepSeekDefaultModelId },
 				doubao: { field: "apiModelId", default: doubaoDefaultModelId },
 				moonshot: { field: "apiModelId", default: moonshotDefaultModelId },
+				minimax: { field: "apiModelId", default: minimaxDefaultModelId },
 				mistral: { field: "apiModelId", default: mistralDefaultModelId },
 				xai: { field: "apiModelId", default: xaiDefaultModelId },
 				groq: { field: "apiModelId", default: groqDefaultModelId },
@@ -420,7 +424,6 @@ const ApiOptions = ({
 				// kilocode_change start
 				kilocode: { field: "kilocodeModel", default: kilocodeDefaultModel },
 				"gemini-cli": { field: "apiModelId", default: geminiCliDefaultModelId },
-				minimax: { field: "apiModelId", default: minimaxDefaultModelId },
 				synthetic: { field: "apiModelId", default: syntheticDefaultModelId },
 				ovhcloud: { field: "ovhCloudAiEndpointsModelId", default: ovhCloudAiEndpointsDefaultModelId },
 				inception: { field: "inceptionLabsModelId", default: inceptionDefaultModelId },
@@ -697,6 +700,10 @@ const ApiOptions = ({
 				<Moonshot apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
 			)}
 
+			{selectedProvider === "minimax" && (
+				<MiniMax apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
+			)}
+
 			{selectedProvider === "vscode-lm" && (
 				<VSCodeLM apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
 			)}
@@ -721,10 +728,7 @@ const ApiOptions = ({
 				<Cerebras apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
 			)}
 
-			{/* kilocode_change start */}
-
 			{selectedProvider === "chutes" && (
-				// kilocode_change: added props
 				<Chutes
 					apiConfiguration={apiConfiguration}
 					setApiConfigurationField={setApiConfigurationField}
@@ -734,10 +738,7 @@ const ApiOptions = ({
 				/>
 			)}
 
-			{selectedProvider === "minimax" && (
-				<MiniMax apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
-			)}
-
+			{/* kilocode_change start */}
 			{selectedProvider === "gemini-cli" && (
 				<GeminiCli apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
 			)}
@@ -812,22 +813,14 @@ const ApiOptions = ({
 			}
 
 			{selectedProvider === "roo" && (
-				<div className="flex flex-col gap-3">
-					{cloudIsAuthenticated ? (
-						<div className="text-sm text-vscode-descriptionForeground">
-							{t("settings:providers.roo.authenticatedMessage")}
-						</div>
-					) : (
-						<div className="flex flex-col gap-2">
-							<VSCodeButton
-								appearance="primary"
-								onClick={() => vscode.postMessage({ type: "rooCloudSignIn" })}
-								className="w-fit">
-								{t("settings:providers.roo.connectButton")}
-							</VSCodeButton>
-						</div>
-					)}
-				</div>
+				<Roo
+					apiConfiguration={apiConfiguration}
+					setApiConfigurationField={setApiConfigurationField}
+					routerModels={routerModels}
+					cloudIsAuthenticated={cloudIsAuthenticated}
+					organizationAllowList={organizationAllowList}
+					modelValidationError={modelValidationError}
+				/>
 			)}
 
 			{selectedProvider === "featherless" && (
@@ -895,12 +888,21 @@ const ApiOptions = ({
 				</>
 			)}
 
-			<ThinkingBudget
-				key={`${selectedProvider}-${selectedModelId}`}
-				apiConfiguration={apiConfiguration}
-				setApiConfigurationField={setApiConfigurationField}
-				modelInfo={selectedModelInfo}
-			/>
+			{selectedProvider === "roo" ? (
+				<SimpleThinkingBudget
+					key={`${selectedProvider}-${selectedModelId}`}
+					apiConfiguration={apiConfiguration}
+					setApiConfigurationField={setApiConfigurationField}
+					modelInfo={selectedModelInfo}
+				/>
+			) : (
+				<ThinkingBudget
+					key={`${selectedProvider}-${selectedModelId}`}
+					apiConfiguration={apiConfiguration}
+					setApiConfigurationField={setApiConfigurationField}
+					modelInfo={selectedModelInfo}
+				/>
+			)}
 
 			{/* Gate Verbosity UI by capability flag */}
 			{selectedModelInfo?.supportsVerbosity && (

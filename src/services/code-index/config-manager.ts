@@ -20,10 +20,19 @@ export class CodeIndexConfigManager {
 	private geminiOptions?: { apiKey: string }
 	private mistralOptions?: { apiKey: string }
 	private vercelAiGatewayOptions?: { apiKey: string }
+	private openRouterOptions?: { apiKey: string }
 	private qdrantUrl?: string = "http://localhost:6333"
 	private qdrantApiKey?: string
 	private searchMinScore?: number
 	private searchMaxResults?: number
+
+	// kilocode_change start: Kilo org indexing props
+	private _kiloOrgProps: {
+		organizationId: string
+		kilocodeToken: string
+		projectId: string
+	} | null = null
+	// kilocode_change end
 
 	constructor(private readonly contextProxy: ContextProxy) {
 		// Initialize with current configuration to avoid false restart triggers
@@ -36,6 +45,33 @@ export class CodeIndexConfigManager {
 			this.codebaseIndexEnabled = false
 		}
 	}
+
+	// kilocode_change start: Kilo org indexing methods
+	/**
+	 * Sets Kilo organization properties for cloud-based indexing
+	 */
+	public setKiloOrgProps(props: { organizationId: string; kilocodeToken: string; projectId: string }) {
+		this._kiloOrgProps = props
+	}
+
+	/**
+	 * Gets Kilo organization properties
+	 */
+	public getKiloOrgProps() {
+		return this._kiloOrgProps
+	}
+
+	/**
+	 * Checks if Kilo org mode is available (has valid credentials)
+	 */
+	public get isKiloOrgMode(): boolean {
+		return !!(
+			this._kiloOrgProps?.organizationId &&
+			this._kiloOrgProps?.kilocodeToken &&
+			this._kiloOrgProps?.projectId
+		)
+	}
+	// kilocode_change end
 
 	/**
 	 * Gets the context proxy instance
@@ -80,6 +116,7 @@ export class CodeIndexConfigManager {
 		const geminiApiKey = this.contextProxy?.getSecret("codebaseIndexGeminiApiKey") ?? ""
 		const mistralApiKey = this.contextProxy?.getSecret("codebaseIndexMistralApiKey") ?? ""
 		const vercelAiGatewayApiKey = this.contextProxy?.getSecret("codebaseIndexVercelAiGatewayApiKey") ?? ""
+		const openRouterApiKey = this.contextProxy?.getSecret("codebaseIndexOpenRouterApiKey") ?? ""
 
 		// Update instance variables with configuration
 		// Note: codebaseIndexEnabled is NOT loaded here - it will be loaded from workspaceState in loadConfiguration()
@@ -118,6 +155,8 @@ export class CodeIndexConfigManager {
 			this.embedderProvider = "mistral"
 		} else if (codebaseIndexEmbedderProvider === "vercel-ai-gateway") {
 			this.embedderProvider = "vercel-ai-gateway"
+		} else if (codebaseIndexEmbedderProvider === "openrouter") {
+			this.embedderProvider = "openrouter"
 		} else {
 			this.embedderProvider = "openai"
 		}
@@ -139,6 +178,7 @@ export class CodeIndexConfigManager {
 		this.geminiOptions = geminiApiKey ? { apiKey: geminiApiKey } : undefined
 		this.mistralOptions = mistralApiKey ? { apiKey: mistralApiKey } : undefined
 		this.vercelAiGatewayOptions = vercelAiGatewayApiKey ? { apiKey: vercelAiGatewayApiKey } : undefined
+		this.openRouterOptions = openRouterApiKey ? { apiKey: openRouterApiKey } : undefined
 	}
 
 	/**
@@ -157,6 +197,7 @@ export class CodeIndexConfigManager {
 			geminiOptions?: { apiKey: string }
 			mistralOptions?: { apiKey: string }
 			vercelAiGatewayOptions?: { apiKey: string }
+			openRouterOptions?: { apiKey: string }
 			qdrantUrl?: string
 			qdrantApiKey?: string
 			searchMinScore?: number
@@ -180,6 +221,7 @@ export class CodeIndexConfigManager {
 			geminiApiKey: this.geminiOptions?.apiKey ?? "",
 			mistralApiKey: this.mistralOptions?.apiKey ?? "",
 			vercelAiGatewayApiKey: this.vercelAiGatewayOptions?.apiKey ?? "",
+			openRouterApiKey: this.openRouterOptions?.apiKey ?? "",
 			qdrantUrl: this.qdrantUrl ?? "",
 			qdrantApiKey: this.qdrantApiKey ?? "",
 		}
@@ -212,6 +254,7 @@ export class CodeIndexConfigManager {
 				geminiOptions: this.geminiOptions,
 				mistralOptions: this.mistralOptions,
 				vercelAiGatewayOptions: this.vercelAiGatewayOptions,
+				openRouterOptions: this.openRouterOptions,
 				qdrantUrl: this.qdrantUrl,
 				qdrantApiKey: this.qdrantApiKey,
 				searchMinScore: this.currentSearchMinScore,
@@ -222,8 +265,15 @@ export class CodeIndexConfigManager {
 
 	/**
 	 * Checks if the service is properly configured based on the embedder type.
+	 * kilocode_change: Also returns true if Kilo org mode is available
 	 */
 	public isConfigured(): boolean {
+		// kilocode_change start: Allow Kilo org mode as configured
+		if (this.isKiloOrgMode) {
+			return true
+		}
+		// kilocode_change end
+
 		if (this.embedderProvider === "openai") {
 			const openAiKey = this.openAiOptions?.openAiNativeApiKey
 			const qdrantUrl = this.qdrantUrl
@@ -251,6 +301,11 @@ export class CodeIndexConfigManager {
 			return isConfigured
 		} else if (this.embedderProvider === "vercel-ai-gateway") {
 			const apiKey = this.vercelAiGatewayOptions?.apiKey
+			const qdrantUrl = this.qdrantUrl
+			const isConfigured = !!(apiKey && qdrantUrl)
+			return isConfigured
+		} else if (this.embedderProvider === "openrouter") {
+			const apiKey = this.openRouterOptions?.apiKey
 			const qdrantUrl = this.qdrantUrl
 			const isConfigured = !!(apiKey && qdrantUrl)
 			return isConfigured
@@ -289,6 +344,7 @@ export class CodeIndexConfigManager {
 		const prevGeminiApiKey = prev?.geminiApiKey ?? ""
 		const prevMistralApiKey = prev?.mistralApiKey ?? ""
 		const prevVercelAiGatewayApiKey = prev?.vercelAiGatewayApiKey ?? ""
+		const prevOpenRouterApiKey = prev?.openRouterApiKey ?? ""
 		const prevQdrantUrl = prev?.qdrantUrl ?? ""
 		const prevQdrantApiKey = prev?.qdrantApiKey ?? ""
 
@@ -327,6 +383,7 @@ export class CodeIndexConfigManager {
 		const currentGeminiApiKey = this.geminiOptions?.apiKey ?? ""
 		const currentMistralApiKey = this.mistralOptions?.apiKey ?? ""
 		const currentVercelAiGatewayApiKey = this.vercelAiGatewayOptions?.apiKey ?? ""
+		const currentOpenRouterApiKey = this.openRouterOptions?.apiKey ?? ""
 		const currentQdrantUrl = this.qdrantUrl ?? ""
 		const currentQdrantApiKey = this.qdrantApiKey ?? ""
 
@@ -354,6 +411,10 @@ export class CodeIndexConfigManager {
 		}
 
 		if (prevVercelAiGatewayApiKey !== currentVercelAiGatewayApiKey) {
+			return true
+		}
+
+		if (prevOpenRouterApiKey !== currentOpenRouterApiKey) {
 			return true
 		}
 
@@ -415,6 +476,7 @@ export class CodeIndexConfigManager {
 			geminiOptions: this.geminiOptions,
 			mistralOptions: this.mistralOptions,
 			vercelAiGatewayOptions: this.vercelAiGatewayOptions,
+			openRouterOptions: this.openRouterOptions,
 			qdrantUrl: this.qdrantUrl,
 			qdrantApiKey: this.qdrantApiKey,
 			searchMinScore: this.currentSearchMinScore,

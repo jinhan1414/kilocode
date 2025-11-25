@@ -39,6 +39,8 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 	private responseIdResolver: ((value: string | undefined) => void) | undefined
 	// Resolved service tier from Responses API (actual tier used by OpenAI)
 	private lastServiceTier: ServiceTier | undefined
+	// Prompt cache key from previous response for cache optimization
+	private lastPromptCacheKey: string | undefined
 
 	// Event types handled by the shared event processor to avoid duplication
 	private readonly coreHandledEventTypes = new Set<string>([
@@ -99,8 +101,8 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 		const effectiveInfo = this.applyServiceTierPricing(model.info, effectiveTier)
 
 		// Pass total input tokens directly to calculateApiCostOpenAI
-		// The function handles subtracting both cache reads and writes internally (see shared/cost.ts:46)
-		const totalCost = calculateApiCostOpenAI(
+		// The function handles subtracting both cache reads and writes internally
+		const { totalCost } = calculateApiCostOpenAI(
 			effectiveInfo,
 			totalInputTokens,
 			totalOutputTokens,
@@ -245,6 +247,7 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 			store?: boolean
 			instructions?: string
 			service_tier?: ServiceTier
+			prompt_cache_key?: string
 		}
 
 		// Validate requested tier against model support; if not supported, omit.
@@ -283,6 +286,8 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 				(requestedTier === "default" || allowedTierNames.has(requestedTier)) && {
 					service_tier: requestedTier,
 				}),
+			// Include prompt cache key from previous response if available
+			...(this.lastPromptCacheKey && { prompt_cache_key: this.lastPromptCacheKey }),
 		}
 
 		// Include text.verbosity only when the model explicitly supports it
@@ -620,12 +625,7 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 
 	/**
 	 * Prepares the input and conversation continuity parameters for a Responses API call.
-	 * Decides whether to send full conversation or just the latest message based on previousResponseId.
-	 *
-	 * - If a `previousResponseId` is available (either from metadata or the handler's state),
-	 *   it formats only the most recent user message for the input and returns the response ID
-	 *   to maintain conversation context.
-	 * - Otherwise, it formats the entire conversation history (system prompt + messages) for the input.
+	 * Always sends the full conversation history to ensure complete context.
 	 *
 	 * @returns An object containing the formatted input and the previous response ID (if used).
 	 */
@@ -634,29 +634,14 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 		messages: Anthropic.Messages.MessageParam[],
 		metadata?: ApiHandlerCreateMessageMetadata,
 	): { formattedInput: any; previousResponseId?: string } {
-		// Note: suppressPreviousResponseId is handled in handleResponsesApiMessage
-		// This method now only handles formatting based on whether we have a previous response ID
+		// Always format full conversation history to ensure complete context
+		const formattedInput = this.formatFullConversation(systemPrompt, messages)
 
 		// Check for previous response ID from metadata or fallback to lastResponseId
 		const isFirstMessage = messages.length === 1 && messages[0].role === "user"
 		const previousResponseId = metadata?.previousResponseId ?? (!isFirstMessage ? this.lastResponseId : undefined)
 
-		if (previousResponseId) {
-			// When using previous_response_id, only send the latest user message
-			const lastUserMessage = [...messages].reverse().find((msg) => msg.role === "user")
-			if (lastUserMessage) {
-				const formattedMessage = this.formatSingleStructuredMessage(lastUserMessage)
-				// formatSingleStructuredMessage now always returns an object with role and content
-				if (formattedMessage) {
-					return { formattedInput: [formattedMessage], previousResponseId }
-				}
-			}
-			return { formattedInput: [], previousResponseId }
-		} else {
-			// Format full conversation history (returns an array of structured messages)
-			const formattedInput = this.formatFullConversation(systemPrompt, messages)
-			return { formattedInput }
-		}
+		return { formattedInput, previousResponseId }
 	}
 
 	/**
@@ -700,6 +685,10 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 							// Capture resolved service tier if present
 							if (parsed.response?.service_tier) {
 								this.lastServiceTier = parsed.response.service_tier as ServiceTier
+							}
+							// Capture prompt cache key for next request
+							if (parsed.response?.prompt_cache_key) {
+								this.lastPromptCacheKey = parsed.response.prompt_cache_key
 							}
 
 							// Delegate standard event types to the shared processor to avoid duplication
@@ -996,6 +985,10 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 								if (parsed.response?.service_tier) {
 									this.lastServiceTier = parsed.response.service_tier as ServiceTier
 								}
+								// Capture prompt cache key for next request
+								if (parsed.response?.prompt_cache_key) {
+									this.lastPromptCacheKey = parsed.response.prompt_cache_key
+								}
 
 								// Check if the done event contains the complete output (as a fallback)
 								if (
@@ -1123,6 +1116,10 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 		// Capture resolved service tier when available
 		if (event?.response?.service_tier) {
 			this.lastServiceTier = event.response.service_tier as ServiceTier
+		}
+		// Capture prompt cache key for next request
+		if (event?.response?.prompt_cache_key) {
+			this.lastPromptCacheKey = event.response.prompt_cache_key
 		}
 
 		// Handle known streaming text deltas

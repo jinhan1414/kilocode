@@ -6,7 +6,6 @@ import {
 	anthropicModels,
 	bedrockModels,
 	cerebrasModels,
-	chutesModels,
 	claudeCodeModels,
 	deepSeekModels,
 	doubaoModels,
@@ -14,7 +13,6 @@ import {
 	fireworksModels,
 	// kilocode_change start
 	syntheticModels,
-	minimaxModels,
 	// geminiModels,
 	// kilocode_change end
 	groqModels,
@@ -23,12 +21,12 @@ import {
 	moonshotModels,
 	openAiNativeModels,
 	qwenCodeModels,
-	rooModels,
 	sambaNovaModels,
 	vertexModels,
 	vscodeLlmModels,
 	xaiModels,
 	internationalZAiModels,
+	minimaxModels,
 } from "./providers/index.js"
 import { toolUseStylesSchema } from "./kilocode/native-function-calling.js"
 
@@ -50,7 +48,7 @@ export const dynamicProviders = [
 	"huggingface",
 	"litellm",
 	// kilocode_change start
-	"kilocode-openrouter",
+	"kilocode",
 	"ovhcloud",
 	"chutes",
 	"gemini",
@@ -62,6 +60,8 @@ export const dynamicProviders = [
 	"requesty",
 	"unbound",
 	"glama",
+	"roo",
+	"chutes",
 ] as const
 
 export type DynamicProvider = (typeof dynamicProviders)[number]
@@ -133,7 +133,6 @@ export const providerNames = [
 	"anthropic",
 	"bedrock",
 	"cerebras",
-	"chutes",
 	"claude-code",
 	"doubao",
 	"deepseek",
@@ -144,6 +143,7 @@ export const providerNames = [
 	"groq",
 	"mistral",
 	"moonshot",
+	"minimax",
 	"openai-native",
 	"qwen-code",
 	"roo",
@@ -368,6 +368,13 @@ const moonshotSchema = apiModelIdProviderModelSchema.extend({
 	moonshotApiKey: z.string().optional(),
 })
 
+const minimaxSchema = apiModelIdProviderModelSchema.extend({
+	minimaxBaseUrl: z
+		.union([z.literal("https://api.minimax.io/anthropic"), z.literal("https://api.minimaxi.com/anthropic")]) // kilocode_change: anthropic
+		.optional(),
+	minimaxApiKey: z.string().optional(),
+})
+
 const unboundSchema = baseProviderSettingsSchema.extend({
 	unboundApiKey: z.string().optional(),
 	unboundModelId: z.string().optional(),
@@ -419,13 +426,6 @@ const sambaNovaSchema = apiModelIdProviderModelSchema.extend({
 })
 
 // kilocode_change start
-const minimaxSchema = apiModelIdProviderModelSchema.extend({
-	minimaxBaseUrl: z
-		.union([z.literal("https://api.minimax.io/anthropic"), z.literal("https://api.minimaxi.com/anthropic")])
-		.optional(),
-	minimaxApiKey: z.string().optional(),
-})
-
 const inceptionSchema = apiModelIdProviderModelSchema.extend({
 	inceptionLabsBaseUrl: z.string().optional(),
 	inceptionLabsApiKey: z.string().optional(),
@@ -533,13 +533,13 @@ export const providerSettingsSchemaDiscriminated = z.discriminatedUnion("apiProv
 	deepInfraSchema.merge(z.object({ apiProvider: z.literal("deepinfra") })),
 	doubaoSchema.merge(z.object({ apiProvider: z.literal("doubao") })),
 	moonshotSchema.merge(z.object({ apiProvider: z.literal("moonshot") })),
+	minimaxSchema.merge(z.object({ apiProvider: z.literal("minimax") })),
 	unboundSchema.merge(z.object({ apiProvider: z.literal("unbound") })),
 	requestySchema.merge(z.object({ apiProvider: z.literal("requesty") })),
 	humanRelaySchema.merge(z.object({ apiProvider: z.literal("human-relay") })),
 	fakeAiSchema.merge(z.object({ apiProvider: z.literal("fake-ai") })),
 	xaiSchema.merge(z.object({ apiProvider: z.literal("xai") })),
 	// kilocode_change start
-	minimaxSchema.merge(z.object({ apiProvider: z.literal("minimax") })),
 	geminiCliSchema.merge(z.object({ apiProvider: z.literal("gemini-cli") })),
 	kilocodeSchema.merge(z.object({ apiProvider: z.literal("kilocode") })),
 	virtualQuotaFallbackSchema.merge(z.object({ apiProvider: z.literal("virtual-quota-fallback") })),
@@ -582,7 +582,6 @@ export const providerSettingsSchema = z.object({
 	...syntheticSchema.shape,
 	...ovhcloudSchema.shape,
 	...inceptionSchema.shape,
-	...minimaxSchema.shape,
 	// kilocode_change end
 	...openAiNativeSchema.shape,
 	...mistralSchema.shape,
@@ -590,6 +589,7 @@ export const providerSettingsSchema = z.object({
 	...deepInfraSchema.shape,
 	...doubaoSchema.shape,
 	...moonshotSchema.shape,
+	...minimaxSchema.shape,
 	...unboundSchema.shape,
 	...requestySchema.shape,
 	...humanRelaySchema.shape,
@@ -668,7 +668,7 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	"claude-code": "apiModelId",
 	glama: "glamaModelId",
 	openrouter: "openRouterModelId",
-	"kilocode-openrouter": "openRouterModelId",
+	kilocode: "kilocodeModel",
 	bedrock: "apiModelId",
 	vertex: "apiModelId",
 	"openai-native": "openAiModelId",
@@ -678,6 +678,7 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	"gemini-cli": "apiModelId",
 	mistral: "apiModelId",
 	moonshot: "apiModelId",
+	minimax: "apiModelId",
 	deepseek: "apiModelId",
 	deepinfra: "deepInfraModelId",
 	doubao: "apiModelId",
@@ -686,7 +687,6 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	requesty: "requestyModelId",
 	xai: "apiModelId",
 	// kilocode_change start
-	minimax: "apiModelId",
 	synthetic: "apiModelId",
 	// kilocode_change end
 	groq: "apiModelId",
@@ -701,7 +701,6 @@ export const modelIdKeysByProvider: Record<TypicalProvider, ModelIdKey> = {
 	"io-intelligence": "ioIntelligenceModelId",
 	roo: "apiModelId",
 	"vercel-ai-gateway": "vercelAiGatewayModelId",
-	kilocode: "kilocodeModel",
 	"virtual-quota-fallback": "apiModelId",
 	ovhcloud: "ovhCloudAiEndpointsModelId", // kilocode_change
 	openai: "openAiModelId", // kilocode_change
@@ -725,7 +724,12 @@ export const getApiProtocol = (provider: ProviderName | undefined, modelId?: str
 	}
 
 	// Vercel AI Gateway uses anthropic protocol for anthropic models.
-	if (provider && provider === "vercel-ai-gateway" && modelId && modelId.toLowerCase().startsWith("anthropic/")) {
+	if (
+		provider &&
+		["vercel-ai-gateway", "roo"].includes(provider) &&
+		modelId &&
+		modelId.toLowerCase().startsWith("anthropic/")
+	) {
 		return "anthropic"
 	}
 
@@ -754,11 +758,6 @@ export const MODELS_BY_PROVIDER: Record<
 		id: "cerebras",
 		label: "Cerebras",
 		models: Object.keys(cerebrasModels),
-	},
-	chutes: {
-		id: "chutes",
-		label: "Chutes AI",
-		models: Object.keys(chutesModels),
 	},
 	"claude-code": { id: "claude-code", label: "Claude Code", models: Object.keys(claudeCodeModels) },
 	deepseek: {
@@ -805,13 +804,18 @@ export const MODELS_BY_PROVIDER: Record<
 		label: "Moonshot",
 		models: Object.keys(moonshotModels),
 	},
+	minimax: {
+		id: "minimax",
+		label: "MiniMax",
+		models: Object.keys(minimaxModels),
+	},
 	"openai-native": {
 		id: "openai-native",
 		label: "OpenAI",
 		models: Object.keys(openAiNativeModels),
 	},
 	"qwen-code": { id: "qwen-code", label: "Qwen Code", models: Object.keys(qwenCodeModels) },
-	roo: { id: "roo", label: "Roo", models: Object.keys(rooModels) },
+	roo: { id: "roo", label: "Roo Code Cloud", models: [] },
 	sambanova: {
 		id: "sambanova",
 		label: "SambaNova",
@@ -840,19 +844,14 @@ export const MODELS_BY_PROVIDER: Record<
 	openai: { id: "openai", label: "OpenAI Compatible", models: [] }, // kilocode_change
 
 	// kilocode_change start
-	minimax: {
-		id: "minimax",
-		label: "MiniMax",
-		models: Object.keys(minimaxModels),
-	},
 	ovhcloud: { id: "ovhcloud", label: "OVHcloud AI Endpoints", models: [] },
 	inception: { id: "inception", label: "Inception", models: [] },
 	kilocode: { id: "kilocode", label: "Kilocode", models: [] },
-	"kilocode-openrouter": { id: "kilocode-openrouter", label: "Kilocode", models: [] }, // temporarily needed to satisfy because we're using 2 inconsistent names apparently
 	"virtual-quota-fallback": { id: "virtual-quota-fallback", label: "Virtual Quota Fallback", models: [] },
 	// kilocode_change end
 	deepinfra: { id: "deepinfra", label: "DeepInfra", models: [] },
 	"vercel-ai-gateway": { id: "vercel-ai-gateway", label: "Vercel AI Gateway", models: [] },
+	chutes: { id: "chutes", label: "Chutes AI", models: [] },
 
 	// Local providers; models discovered from localhost endpoints.
 	lmstudio: { id: "lmstudio", label: "LM Studio", models: [] },

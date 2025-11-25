@@ -35,7 +35,7 @@ import {
 	GeminiCliHandler,
 	SyntheticHandler,
 	OVHcloudAIEndpointsHandler,
-	MiniMaxHandler,
+	MiniMaxAnthropicHandler,
 	// kilocode_change end
 	ClaudeCodeHandler,
 	QwenCodeHandler,
@@ -48,6 +48,7 @@ import {
 	FeatherlessHandler,
 	VercelAiGatewayHandler,
 	DeepInfraHandler,
+	// MiniMaxHandler, // kilocode_change
 } from "./providers"
 // kilocode_change start
 import { KilocodeOpenrouterHandler } from "./providers/kilocode-openrouter"
@@ -120,8 +121,6 @@ export function buildApiHandler(configuration: ProviderSettings): ApiHandler {
 	switch (apiProvider) {
 		// kilocode_change start
 		case "kilocode":
-			return new KilocodeOpenrouterHandler(options)
-		case "kilocode-openrouter": // temp typing fix
 			return new KilocodeOpenrouterHandler(options)
 		case "gemini-cli":
 			return new GeminiCliHandler(options)
@@ -199,8 +198,6 @@ export function buildApiHandler(configuration: ProviderSettings): ApiHandler {
 			return new InceptionLabsHandler(options)
 		case "ovhcloud":
 			return new OVHcloudAIEndpointsHandler(options)
-		case "minimax":
-			return new MiniMaxHandler(options)
 		// kilocode_change end
 		case "io-intelligence":
 			return new IOIntelligenceHandler(options)
@@ -212,6 +209,8 @@ export function buildApiHandler(configuration: ProviderSettings): ApiHandler {
 			return new FeatherlessHandler(options)
 		case "vercel-ai-gateway":
 			return new VercelAiGatewayHandler(options)
+		case "minimax":
+			return new MiniMaxAnthropicHandler(options) // kilocode_change: anthropic
 		default:
 			apiProvider satisfies "gemini-cli" | undefined
 			return new AnthropicHandler(options)
