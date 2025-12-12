@@ -321,7 +321,9 @@ function getSelectedModel({
 		}
 		case "openai-native": {
 			const id = apiConfiguration.apiModelId ?? openAiNativeDefaultModelId
-			const info = openAiNativeModels[id as keyof typeof openAiNativeModels]
+			const info =
+				openAiNativeModels[id as keyof typeof openAiNativeModels] ??
+				openAiNativeModels[openAiNativeDefaultModelId]
 			return { id, info }
 		}
 		case "mistral": {

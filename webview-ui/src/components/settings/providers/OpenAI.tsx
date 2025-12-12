@@ -75,6 +75,14 @@ export const OpenAI = ({ apiConfiguration, setApiConfigurationField, selectedMod
 				</VSCodeButtonLink>
 			)}
 
+			<VSCodeTextField
+				value={apiConfiguration?.apiModelId || ""}
+				onInput={handleInputChange("apiModelId")}
+				placeholder="gpt-5.1 or custom model id"
+				className="w-full mt-2">
+				<label className="block font-medium mb-1">Model ID (Responses API)</label>
+			</VSCodeTextField>
+
 			{(() => {
 				const allowedTiers = (selectedModelInfo?.tiers?.map((t) => t.name).filter(Boolean) || []).filter(
 					(t) => t === "flex" || t === "priority",

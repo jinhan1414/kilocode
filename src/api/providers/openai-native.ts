@@ -1234,19 +1234,18 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 	// Removed isResponsesApiModel method as ALL models now use the Responses API
 
 	override getModel() {
-		const modelId = this.options.apiModelId
+		const requestedId = this.options.apiModelId
+		const rawId = requestedId || openAiNativeDefaultModelId
 
-		let id =
-			modelId && modelId in openAiNativeModels ? (modelId as OpenAiNativeModelId) : openAiNativeDefaultModelId
-
-		const info: ModelInfo = openAiNativeModels[id]
+		const nativeModels = openAiNativeModels as Record<string, ModelInfo>
+		const info: ModelInfo = nativeModels[rawId] ?? openAiNativeModels[openAiNativeDefaultModelId]
 
 		const params = getModelParams({
 			format: "openai",
-			modelId: id,
+			modelId: rawId,
 			model: info,
 			settings: this.options,
-			defaultTemperature: id.startsWith(GPT5_MODEL_PREFIX)
+			defaultTemperature: rawId.startsWith(GPT5_MODEL_PREFIX)
 				? GPT5_DEFAULT_TEMPERATURE
 				: OPENAI_NATIVE_DEFAULT_TEMPERATURE,
 		})
@@ -1261,8 +1260,13 @@ export class OpenAiNativeHandler extends BaseProvider implements SingleCompletio
 		}
 
 		// The o3 models are named like "o3-mini-[reasoning-effort]", which are
-		// not valid model ids, so we need to strip the suffix.
-		return { id: id.startsWith("o3-mini") ? "o3-mini" : id, info, ...params, verbosity: params.verbosity }
+		// not valid model ids, so we need to strip the suffix for API calls.
+		let apiModelId = rawId
+		if (apiModelId.startsWith("o3-mini")) {
+			apiModelId = "o3-mini"
+		}
+
+		return { id: apiModelId, info, ...params, verbosity: params.verbosity }
 	}
 
 	/**

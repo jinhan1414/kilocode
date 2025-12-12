@@ -382,5 +382,40 @@ describe("BaseOpenAiCompatibleProvider", () => {
 			expect(firstChunk.done).toBe(false)
 			expect(firstChunk.value).toEqual({ type: "usage", inputTokens: 100, outputTokens: 50 })
 		})
+
+		it("should allow arbitrary custom apiModelId and still use default model info", async () => {
+			// 动态注入自定义模型 ID（不在 providerModels 列表中）
+			;(handler as any)["options"].apiModelId = "my-custom-model"
+
+			mockCreate.mockImplementationOnce(() => {
+				return {
+					[Symbol.asyncIterator]: () => ({
+						async next() {
+							return { done: true }
+						},
+					}),
+				}
+			})
+
+			const systemPrompt = "Test system prompt"
+			const messages: Anthropic.Messages.MessageParam[] = [{ role: "user", content: "Test message" }]
+
+			const messageGenerator = handler.createMessage(systemPrompt, messages)
+			await messageGenerator.next()
+
+			// 应该使用自定义的 modelId 发送请求
+			expect(mockCreate).toHaveBeenCalledWith(
+				expect.objectContaining({
+					model: "my-custom-model",
+				}),
+				undefined,
+			)
+
+			// getModel 仍然返回默认模型的信息，用于 max_tokens、价格等
+			const modelInfo = handler.getModel()
+			expect(modelInfo.id).toBe("my-custom-model")
+			expect(modelInfo.info.maxTokens).toBe(4096)
+			expect(modelInfo.info.contextWindow).toBe(128000)
+		})
 	})
 })

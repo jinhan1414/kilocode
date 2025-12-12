@@ -205,6 +205,23 @@ describe("OpenAiNativeHandler", () => {
 			expect(modelInfo.id).toBe("gpt-5.1") // kilocode_change: Default model
 			expect(modelInfo.info).toBeDefined()
 		})
+
+		it("should use custom apiModelId while falling back to default ModelInfo when unknown", () => {
+			const defaultHandler = new OpenAiNativeHandler({
+				openAiNativeApiKey: "test-api-key",
+			})
+			const defaultModel = defaultHandler.getModel()
+
+			const customModelId = "my-custom-model"
+			const customHandler = new OpenAiNativeHandler({
+				...mockOptions,
+				apiModelId: customModelId,
+			})
+			const customModel = customHandler.getModel()
+
+			expect(customModel.id).toBe(customModelId)
+			expect(customModel.info).toEqual(defaultModel.info)
+		})
 	})
 
 	describe("GPT-5 models", () => {
@@ -927,10 +944,26 @@ describe("OpenAiNativeHandler", () => {
 			// Verify two requests were made
 			expect(mockFetch).toHaveBeenCalledTimes(2)
 
-			// First request: includes previous_response_id and only latest message
+			// First request: includes previous_response_id and FULL conversation history
 			const firstCallBody = JSON.parse(mockFetch.mock.calls[0][1].body)
 			expect(firstCallBody.previous_response_id).toBe("resp_invalid")
 			expect(firstCallBody.input).toEqual([
+				{
+					role: "user",
+					content: [{ type: "input_text", text: "What is 2+2?" }],
+				},
+				{
+					role: "assistant",
+					content: [{ type: "output_text", text: "2+2 equals 4." }],
+				},
+				{
+					role: "user",
+					content: [{ type: "input_text", text: "What about 3+3?" }],
+				},
+				{
+					role: "assistant",
+					content: [{ type: "output_text", text: "3+3 equals 6." }],
+				},
 				{
 					role: "user",
 					content: [{ type: "input_text", text: "And 4+4?" }],
@@ -1030,10 +1063,18 @@ describe("OpenAiNativeHandler", () => {
 			// Verify two SDK calls were made
 			expect(mockResponsesCreate).toHaveBeenCalledTimes(2)
 
-			// First SDK call: includes previous_response_id and only latest message
+			// First SDK call: includes previous_response_id and FULL conversation history
 			const firstCallBody = mockResponsesCreate.mock.calls[0][0]
 			expect(firstCallBody.previous_response_id).toBe("resp_invalid")
 			expect(firstCallBody.input).toEqual([
+				{
+					role: "user",
+					content: [{ type: "input_text", text: "Remember the number 42" }],
+				},
+				{
+					role: "assistant",
+					content: [{ type: "output_text", text: "I'll remember 42." }],
+				},
 				{
 					role: "user",
 					content: [{ type: "input_text", text: "What number did I ask you to remember?" }],
@@ -1061,7 +1102,7 @@ describe("OpenAiNativeHandler", () => {
 			])
 		})
 
-		it("should only send latest message when using previous_response_id", async () => {
+		it("should send full conversation when using previous_response_id", async () => {
 			// Mock fetch for Responses API
 			const mockFetch = vitest
 				.fn()
@@ -1141,7 +1182,7 @@ describe("OpenAiNativeHandler", () => {
 			])
 			expect(firstCallBody.previous_response_id).toBeUndefined()
 
-			// Second request with previous_response_id - should only send latest message
+			// Second request with previous_response_id - should send full conversation in structured format
 			const secondMessages: Anthropic.Messages.MessageParam[] = [
 				{ role: "user", content: "Hello" },
 				{ role: "assistant", content: "Hi there!" },
@@ -1158,9 +1199,25 @@ describe("OpenAiNativeHandler", () => {
 				// consume stream
 			}
 
-			// Verify second request only sends the latest user message in structured format
+			// Verify second request sends full structured conversation in input
 			let secondCallBody = JSON.parse(mockFetch.mock.calls[1][1].body)
 			expect(secondCallBody.input).toEqual([
+				{
+					role: "user",
+					content: [{ type: "input_text", text: "Hello" }],
+				},
+				{
+					role: "assistant",
+					content: [{ type: "output_text", text: "Hi there!" }],
+				},
+				{
+					role: "user",
+					content: [{ type: "input_text", text: "How are you?" }],
+				},
+				{
+					role: "assistant",
+					content: [{ type: "output_text", text: "I'm doing well!" }],
+				},
 				{
 					role: "user",
 					content: [{ type: "input_text", text: "What's the weather?" }],

@@ -344,6 +344,15 @@ const ApiOptions = ({
 					}))
 			: []
 
+		// Ensure the currently selected model is always present in the options,
+		// even if it is a custom ID that is not part of the static model list.
+		if (selectedModelId && !availableModels.some((option) => option.value === selectedModelId)) {
+			availableModels.push({
+				value: selectedModelId,
+				label: selectedModelId,
+			})
+		}
+
 		return availableModels
 	}, [selectedProvider, organizationAllowList, selectedModelId])
 

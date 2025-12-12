@@ -178,13 +178,20 @@ describe("GeminiHandler", () => {
 			expect(modelInfo.info.contextWindow).toBe(32_767)
 		})
 
-		it("should return default model if invalid model specified", () => {
+		it("should use custom apiModelId even if it is not in the fetched models list", () => {
 			const invalidHandler = new GeminiHandler({
 				apiModelId: "invalid-model",
 				geminiApiKey: "test-key",
 			})
 			const modelInfo = invalidHandler.getModel()
-			expect(modelInfo.id).toBe(geminiDefaultModelId) // Default model
+
+			// 现在应直接使用自定义的 apiModelId 作为请求模型 ID
+			expect(modelInfo.id).toBe("invalid-model")
+
+			// ModelInfo 应该回退到默认模型的配置，保证后续 max tokens / 计费逻辑正常
+			expect(modelInfo.info).toBeDefined()
+			expect(modelInfo.info.maxTokens).toBeDefined()
+			expect(modelInfo.info.contextWindow).toBeDefined()
 		})
 	})
 

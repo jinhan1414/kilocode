@@ -223,22 +223,25 @@ export class GeminiHandler extends BaseProvider implements SingleCompletionHandl
 	}
 
 	override getModel() {
-		// kilocode_change start: dynamic loading
+		// kilocode_change start: dynamic loading + custom modelId 支持
 		const requestedId = this.options.apiModelId
 		const availableModels = this.models
 		const staticModels = geminiModels as Record<string, ModelInfo>
 
-		const id = requestedId && requestedId in availableModels ? requestedId : geminiDefaultModelId
+		// rawId：请求里要使用的原始模型 ID，优先使用用户自定义的 apiModelId
+		const rawId = requestedId || geminiDefaultModelId
 
+		// info：优先使用对应模型的信息，不存在时回退到默认模型的信息
 		const info: ModelInfo =
-			availableModels[id] ??
-			staticModels[id] ??
+			availableModels[rawId] ??
+			staticModels[rawId] ??
 			availableModels[geminiDefaultModelId] ??
 			staticModels[geminiDefaultModelId]
 
-		const params = getModelParams({ format: "gemini", modelId: id, model: info, settings: this.options })
+		const params = getModelParams({ format: "gemini", modelId: rawId, model: info, settings: this.options })
 
-		const apiModelId = id.endsWith(":thinking") ? id.replace(":thinking", "") : id
+		// API 实际调用时去掉 :thinking 后缀
+		const apiModelId = rawId.endsWith(":thinking") ? rawId.replace(":thinking", "") : rawId
 
 		return { id: apiModelId, info, ...params }
 		// kilocode_change end
