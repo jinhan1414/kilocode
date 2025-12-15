@@ -13,7 +13,7 @@ import { requestRouterModelsAtom } from "./state/atoms/actions.js"
 import { loadHistoryAtom } from "./state/atoms/history.js"
 import { taskHistoryDataAtom, updateTaskHistoryFiltersAtom } from "./state/atoms/taskHistory.js"
 import { sendWebviewMessageAtom } from "./state/atoms/actions.js"
-import { taskResumedViaContinueAtom } from "./state/atoms/extension.js"
+import { taskResumedViaContinueOrSessionAtom } from "./state/atoms/extension.js"
 import { getTelemetryService, getIdentityManager } from "./services/telemetry/index.js"
 import { notificationsAtom, notificationsErrorAtom, notificationsLoadingAtom } from "./state/atoms/notifications.js"
 import { fetchKilocodeNotifications } from "./utils/notifications.js"
@@ -24,6 +24,10 @@ import type { CLIOptions } from "./types/cli.js"
 import type { CLIConfig, ProviderConfig } from "./config/types.js"
 import { getModelIdKey } from "./constants/providers/models.js"
 import type { ProviderName } from "./types/messages.js"
+import { getSelectedModelId } from "./utils/providers.js"
+import { KiloCodePathProvider, ExtensionMessengerAdapter } from "./services/session-adapters.js"
+import { getKiloToken } from "./config/persistence.js"
+import { SessionManager } from "../../src/shared/kilocode/cli-sessions/core/SessionManager.js"
 
 /**
  * Main application class that orchestrates the CLI lifecycle
@@ -34,6 +38,7 @@ export class CLI {
 	private ui: Instance | null = null
 	private options: CLIOptions
 	private isInitialized = false
+	private sessionService: SessionManager | null = null
 
 	constructor(options: CLIOptions = {}) {
 		this.options = options
@@ -102,6 +107,10 @@ export class CLI {
 				}
 			}
 
+			if (this.options.customModes) {
+				serviceOptions.customModes = this.options.customModes
+			}
+
 			this.service = createExtensionService(serviceOptions)
 			logs.debug("ExtensionService created with identity", "CLI", {
 				hasIdentity: !!identity,
@@ -122,11 +131,87 @@ export class CLI {
 			// Track successful extension initialization
 			telemetryService.trackExtensionInitialized(true)
 
+			// Initialize services and restore session if kiloToken is available
+			// This must happen AFTER ExtensionService initialization to allow webview messages
+			const kiloToken = getKiloToken(config)
+
+			if (kiloToken) {
+				// Inject CLI configuration into ExtensionHost
+				// This must happen BEFORE session restoration to ensure org ID is set
+				await this.injectConfigurationToExtension()
+				logs.debug("CLI configuration injected into extension", "CLI")
+
+				const pathProvider = new KiloCodePathProvider()
+				const extensionMessenger = new ExtensionMessengerAdapter(this.service)
+
+				this.sessionService = SessionManager.init({
+					pathProvider,
+					logger: logs,
+					extensionMessenger,
+					getToken: () => Promise.resolve(kiloToken),
+					onSessionCreated: (message) => {
+						if (this.options.json) {
+							console.log(JSON.stringify(message))
+						}
+					},
+					onSessionRestored: () => {
+						if (this.store) {
+							this.store.set(taskResumedViaContinueOrSessionAtom, true)
+						}
+					},
+					onSessionSynced: (message) => {
+						if (this.options.json) {
+							console.log(JSON.stringify(message))
+						}
+					},
+					platform: "cli",
+					getOrganizationId: async () => {
+						const state = this.service?.getState()
+						const result = state?.apiConfiguration?.kilocodeOrganizationId
+
+						logs.debug(`Resolved organization ID: "${result}"`, "SessionManager")
+
+						return result
+					},
+					getMode: async () => {
+						const state = this.service?.getState()
+						const result = state?.mode
+
+						logs.debug(`Resolved mode: "${result}"`, "SessionManager")
+
+						return result
+					},
+					getModel: async () => {
+						const state = this.service?.getState()
+						const provider = state?.apiConfiguration?.apiProvider
+						const result = getSelectedModelId(provider || "unknown", state?.apiConfiguration)
+
+						logs.debug(`Resolved model: "${result}"`, "SessionManager")
+
+						return result
+					},
+				})
+				logs.debug("SessionManager initialized with dependencies", "CLI")
+
+				const workspace = this.options.workspace || process.cwd()
+				this.sessionService.setWorkspaceDirectory(workspace)
+				logs.debug("SessionManager workspace directory set", "CLI", { workspace })
+
+				if (this.options.session) {
+					await this.sessionService.restoreSession(this.options.session)
+				} else if (this.options.fork) {
+					logs.info("Forking session from share ID", "CLI", { shareId: this.options.fork })
+					await this.sessionService.forkSession(this.options.fork)
+				}
+			}
+
 			// Load command history
 			await this.store.set(loadHistoryAtom)
 			logs.debug("Command history loaded", "CLI")
 
 			// Inject CLI configuration into ExtensionHost
+			// This happens after session restoration (if any) to ensure CLI config takes precedence
+			// Session restoration may have activated a saved profile that doesn't include org ID from env vars
 			await this.injectConfigurationToExtension()
 			logs.debug("CLI configuration injected into extension", "CLI")
 
@@ -176,7 +261,7 @@ export class CLI {
 		// Render UI with store
 		// Disable stdin for Ink when in CI mode or when stdin is piped (not a TTY)
 		// This prevents the "Raw mode is not supported" error
-		const shouldDisableStdin = this.options.ci || !process.stdin.isTTY
+		const shouldDisableStdin = this.options.jsonInteractive || this.options.ci || !process.stdin.isTTY
 
 		this.ui = render(
 			React.createElement(App, {
@@ -186,6 +271,7 @@ export class CLI {
 					workspace: this.options.workspace || process.cwd(),
 					ci: this.options.ci || false,
 					json: this.options.json || false,
+					jsonInteractive: this.options.jsonInteractive || false,
 					prompt: this.options.prompt || "",
 					...(this.options.timeout !== undefined && { timeout: this.options.timeout }),
 					parallel: this.options.parallel || false,
@@ -268,6 +354,8 @@ export class CLI {
 
 		try {
 			logs.info("Disposing Kilo Code CLI...", "CLI")
+
+			await this.sessionService?.doSync(true)
 
 			// Signal codes take precedence over CI logic
 			if (signal === "SIGINT") {
@@ -428,8 +516,21 @@ export class CLI {
 		try {
 			logs.info("Attempting to resume last conversation", "CLI", { workspace })
 
+			// First, try to restore from persisted session ID if kiloToken is available
+			if (this.sessionService) {
+				const restored = await this.sessionService.restoreLastSession()
+				if (restored) {
+					return
+				}
+
+				logs.debug("Falling back to task history", "CLI")
+			}
+
+			// Fallback: Use task history approach
+			logs.debug("Using task history fallback to resume conversation", "CLI")
+
 			// Update filters to current workspace and newest sort
-			await this.store.set(updateTaskHistoryFiltersAtom, {
+			this.store.set(updateTaskHistoryFiltersAtom, {
 				workspace: "current",
 				sort: "newest",
 				favoritesOnly: false,
@@ -457,7 +558,6 @@ export class CLI {
 				logs.warn("No previous tasks found for workspace", "CLI", { workspace })
 				console.error("\nNo previous tasks found for this workspace. Please start a new conversation.\n")
 				process.exit(1)
-				return // TypeScript doesn't know process.exit stops execution
 			}
 
 			// Find the most recent task (first in the list since we sorted by newest)
@@ -467,7 +567,6 @@ export class CLI {
 				logs.warn("No valid task found in history", "CLI", { workspace })
 				console.error("\nNo valid task found to resume. Please start a new conversation.\n")
 				process.exit(1)
-				return
 			}
 
 			logs.debug("Found last task", "CLI", { taskId: lastTask.id, task: lastTask.task })
@@ -479,7 +578,7 @@ export class CLI {
 			})
 
 			// Mark that the task was resumed via --continue to prevent showing "Task ready to resume" message
-			this.store.set(taskResumedViaContinueAtom, true)
+			this.store.set(taskResumedViaContinueOrSessionAtom, true)
 
 			logs.info("Task resume initiated", "CLI", { taskId: lastTask.id, task: lastTask.task })
 		} catch (error) {

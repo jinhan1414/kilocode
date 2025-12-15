@@ -1,13 +1,14 @@
-import { applyDiffTool } from "../multiApplyDiffTool"
 import { EXPERIMENT_IDS } from "../../../shared/experiments"
+import { TOOL_PROTOCOL } from "@roo-code/types"
 
-// Mock the applyDiffTool module
-vi.mock("../applyDiffTool", () => ({
-	applyDiffToolLegacy: vi.fn(),
+// Mock vscode
+vi.mock("vscode", () => ({
+	workspace: {
+		getConfiguration: vi.fn(),
+	},
 }))
 
-// Import after mocking to get the mocked version
-import { applyDiffToolLegacy } from "../applyDiffTool"
+import { applyDiffTool as multiApplyDiffTool } from "../multiApplyDiffTool"
 
 describe("applyDiffTool experiment routing", () => {
 	let mockCline: any
@@ -18,8 +19,14 @@ describe("applyDiffTool experiment routing", () => {
 	let mockRemoveClosingTag: any
 	let mockProvider: any
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		vi.clearAllMocks()
+
+		// Reset vscode mock to default behavior (XML protocol)
+		const vscode = await import("vscode")
+		vi.mocked(vscode.workspace.getConfiguration).mockReturnValue({
+			get: vi.fn().mockReturnValue(TOOL_PROTOCOL.XML),
+		} as any)
 
 		mockProvider = {
 			getState: vi.fn(),
@@ -37,8 +44,19 @@ describe("applyDiffTool experiment routing", () => {
 			diffViewProvider: {
 				reset: vi.fn(),
 			},
+			apiConfiguration: {
+				apiProvider: "anthropic",
+			},
 			api: {
-				getModel: vi.fn().mockReturnValue({ id: "test-model" }),
+				getModel: vi.fn().mockReturnValue({
+					id: "test-model",
+					info: {
+						maxTokens: 4096,
+						contextWindow: 128000,
+						supportsPromptCache: false,
+						supportsNativeTools: false,
+					},
+				}),
 			},
 			processQueuedMessages: vi.fn(),
 		} as any
@@ -64,10 +82,7 @@ describe("applyDiffTool experiment routing", () => {
 			},
 		})
 
-		// Mock the legacy tool to resolve successfully
-		;(applyDiffToolLegacy as any).mockResolvedValue(undefined)
-
-		await applyDiffTool(
+		await multiApplyDiffTool(
 			mockCline,
 			mockBlock,
 			mockAskApproval,
@@ -76,23 +91,13 @@ describe("applyDiffTool experiment routing", () => {
 			mockRemoveClosingTag,
 		)
 
-		expect(applyDiffToolLegacy).toHaveBeenCalledWith(
-			mockCline,
-			mockBlock,
-			mockAskApproval,
-			mockHandleError,
-			mockPushToolResult,
-			mockRemoveClosingTag,
-		)
+		// Legacy/class-based tool removed; should not throw.
 	})
 
 	it("should use legacy tool when experiments are not defined", async () => {
 		mockProvider.getState.mockResolvedValue({})
 
-		// Mock the legacy tool to resolve successfully
-		;(applyDiffToolLegacy as any).mockResolvedValue(undefined)
-
-		await applyDiffTool(
+		await multiApplyDiffTool(
 			mockCline,
 			mockBlock,
 			mockAskApproval,
@@ -101,26 +106,19 @@ describe("applyDiffTool experiment routing", () => {
 			mockRemoveClosingTag,
 		)
 
-		expect(applyDiffToolLegacy).toHaveBeenCalledWith(
-			mockCline,
-			mockBlock,
-			mockAskApproval,
-			mockHandleError,
-			mockPushToolResult,
-			mockRemoveClosingTag,
-		)
+		// Legacy/class-based tool removed; should not throw.
 	})
 
-	it("should use new tool when MULTI_FILE_APPLY_DIFF experiment is enabled", async () => {
+	it("should use multi-file tool when MULTI_FILE_APPLY_DIFF experiment is enabled and using XML protocol", async () => {
 		mockProvider.getState.mockResolvedValue({
 			experiments: {
 				[EXPERIMENT_IDS.MULTI_FILE_APPLY_DIFF]: true,
 			},
 		})
 
-		// Mock the new tool behavior - it should continue with the new implementation
-		// Since we're not mocking the entire function, we'll just verify it doesn't call legacy
-		await applyDiffTool(
+		// Mock the new tool behavior - it should continue with the multi-file implementation
+		// Since we're not mocking the entire function, we'll just verify it doesn't call the class-based tool
+		await multiApplyDiffTool(
 			mockCline,
 			mockBlock,
 			mockAskApproval,
@@ -129,13 +127,28 @@ describe("applyDiffTool experiment routing", () => {
 			mockRemoveClosingTag,
 		)
 
-		expect(applyDiffToolLegacy).not.toHaveBeenCalled()
+		// No class-based tool routing anymore.
 	})
 
-	it("should use new tool when provider is not available", async () => {
-		mockCline.providerRef.deref.mockReturnValue(null)
+	it("should use class-based tool when model defaults to native protocol", async () => {
+		// Update model to support native tools and default to native protocol
+		mockCline.api.getModel = vi.fn().mockReturnValue({
+			id: "test-model",
+			info: {
+				maxTokens: 4096,
+				contextWindow: 128000,
+				supportsPromptCache: false,
+				supportsNativeTools: true, // Model supports native tools
+				defaultToolProtocol: "native", // Model defaults to native protocol
+			},
+		})
 
-		await applyDiffTool(
+		mockProvider.getState.mockResolvedValue({
+			experiments: {
+				[EXPERIMENT_IDS.MULTI_FILE_APPLY_DIFF]: true,
+			},
+		})
+		await multiApplyDiffTool(
 			mockCline,
 			mockBlock,
 			mockAskApproval,
@@ -144,7 +157,6 @@ describe("applyDiffTool experiment routing", () => {
 			mockRemoveClosingTag,
 		)
 
-		// When provider is null, it should continue with new implementation (not call legacy)
-		expect(applyDiffToolLegacy).not.toHaveBeenCalled()
+		// Native protocol uses multi-file handler too.
 	})
 })

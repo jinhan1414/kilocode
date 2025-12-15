@@ -1,7 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI, { AzureOpenAI } from "openai"
 import axios from "axios"
-import * as fs from "fs"
 
 import {
 	type ModelInfo,
@@ -9,7 +8,6 @@ import {
 	openAiModelInfoSaneDefaults,
 	DEEP_SEEK_DEFAULT_TEMPERATURE,
 	OPENAI_AZURE_AI_INFERENCE_PATH,
-	getActiveToolUseStyle, // kilocode_change
 } from "@roo-code/types"
 
 import type { ApiHandlerOptions } from "../../shared/api"
@@ -21,7 +19,7 @@ import { convertToR1Format } from "../transform/r1-format"
 import { convertToSimpleMessages } from "../transform/simple-format"
 import { ApiStream, ApiStreamUsageChunk } from "../transform/stream"
 import { getModelParams } from "../transform/model-params"
-import { addNativeToolCallsToParams, processNativeToolCallsFromDelta } from "./kilocode/nativeToolCallHelpers"
+import { ToolCallAccumulator } from "./kilocode/nativeToolCallHelpers"
 import { DEFAULT_HEADERS } from "./constants"
 import { BaseProvider } from "./base-provider"
 import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from "../index"
@@ -35,21 +33,6 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 	protected options: ApiHandlerOptions
 	private client: OpenAI
 	private readonly providerName = "OpenAI"
-	private readonly logPath = "D:\\openai.log"
-
-	private logToFile(type: string, data: any): void {
-		try {
-			const logData = JSON.parse(JSON.stringify(data))
-			if (logData.tools) {
-				logData.tools = `[${logData.tools.length} tools omitted]`
-			}
-			const timestamp = new Date().toISOString()
-			const logEntry = `\n[${timestamp}] ${type}:\n${JSON.stringify(logData, null, 2)}\n`
-			fs.appendFileSync(this.logPath, logEntry)
-		} catch (error) {
-			// Silently fail
-		}
-	}
 
 	constructor(options: ApiHandlerOptions) {
 		super()
@@ -112,18 +95,17 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 		const ark = modelUrl.includes(".volces.com")
 
 		if (modelId.includes("o1") || modelId.includes("o3") || modelId.includes("o4")) {
-			yield* this.handleO3FamilyMessage(modelId, systemPrompt, messages)
+			yield* this.handleO3FamilyMessage(modelId, systemPrompt, messages, metadata)
 			return
 		}
 
-		if (this.options.openAiStreamingEnabled ?? true) {
-			let systemMessage: OpenAI.Chat.ChatCompletionSystemMessageParam = {
-				role: "system",
-				content: systemPrompt,
-			}
+		let systemMessage: OpenAI.Chat.ChatCompletionSystemMessageParam = {
+			role: "system",
+			content: systemPrompt,
+		}
 
+		if (this.options.openAiStreamingEnabled ?? true) {
 			let convertedMessages
-			const toolStyle = getActiveToolUseStyle(this.options)
 
 			if (deepseekReasoner) {
 				convertedMessages = convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
@@ -144,7 +126,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 					}
 				}
 
-				convertedMessages = [systemMessage, ...convertToOpenAiMessages(messages, toolStyle)]
+				convertedMessages = [systemMessage, ...convertToOpenAiMessages(messages)]
 
 				if (modelInfo.supportsPromptCache) {
 					// Note: the following logic is copied from openrouter:
@@ -182,16 +164,15 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				stream: true as const,
 				...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
 				...(reasoning && reasoning),
+				...(metadata?.tools && { tools: this.convertToolsForOpenAI(metadata.tools) }),
+				...(metadata?.tool_choice && { tool_choice: metadata.tool_choice }),
+				...(metadata?.toolProtocol === "native" && {
+					parallel_tool_calls: metadata.parallelToolCalls ?? false,
+				}),
 			}
 
 			// Add max_tokens if needed
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
-
-			// kilocode_change start: Add native tool call support when toolStyle is "json"
-			addNativeToolCallsToParams(requestOptions, this.options, metadata)
-			// kilocode_change end
-
-			this.logToFile("REQUEST", requestOptions)
 
 			let stream
 			try {
@@ -213,19 +194,12 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			)
 
 			let lastUsage
-			const responseChunks: any[] = []
+			const toolCallAccumulator = new ToolCallAccumulator() // kilocode_change
 
 			for await (const chunk of stream) {
-				responseChunks.push(chunk)
-				const delta = chunk.choices[0]?.delta ?? {}
+				const delta = chunk.choices?.[0]?.delta ?? {}
 
-				// kilocode_change start: Handle native tool calls when toolStyle is "json"
-				const toolStyle = getActiveToolUseStyle(this.options)
-				if (delta.tool_calls) {
-					this.logToFile("TOOL_CALL_DELTA", { toolStyle, delta: delta.tool_calls })
-				}
-				yield* processNativeToolCallsFromDelta(delta, toolStyle)
-				// kilocode_change end
+				yield* toolCallAccumulator.processChunk(chunk) // kilocode_change
 
 				if (delta.content) {
 					for (const chunk of matcher.update(delta.content)) {
@@ -248,6 +222,18 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				}
 				// kilocode_change end
 
+				if (delta.tool_calls) {
+					for (const toolCall of delta.tool_calls) {
+						yield {
+							type: "tool_call_partial",
+							index: toolCall.index,
+							id: toolCall.id,
+							name: toolCall.function?.name,
+							arguments: toolCall.function?.arguments,
+						}
+					}
+				}
+
 				if (chunk.usage) {
 					lastUsage = chunk.usage
 				}
@@ -257,34 +243,26 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				yield chunk
 			}
 
-			this.logToFile("RESPONSE", { chunks: responseChunks, usage: lastUsage })
-
 			if (lastUsage) {
 				yield this.processUsageMetrics(lastUsage, modelInfo)
 			}
 		} else {
-			// o1 for instance doesnt support streaming, non-1 temp, or system prompt
-			const systemMessage: OpenAI.Chat.ChatCompletionUserMessageParam = {
-				role: "user",
-				content: systemPrompt,
-			}
-
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
 				model: modelId,
 				messages: deepseekReasoner
 					? convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 					: enabledLegacyFormat
 						? [systemMessage, ...convertToSimpleMessages(messages)]
-						: [systemMessage, ...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options))],
+						: [systemMessage, ...convertToOpenAiMessages(messages)],
+				...(metadata?.tools && { tools: this.convertToolsForOpenAI(metadata.tools) }),
+				...(metadata?.tool_choice && { tool_choice: metadata.tool_choice }),
+				...(metadata?.toolProtocol === "native" && {
+					parallel_tool_calls: metadata.parallelToolCalls ?? false,
+				}),
 			}
 
 			// Add max_tokens if needed
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
-			// kilocode_change start: Add native tool call support when toolStyle is "json"
-			addNativeToolCallsToParams(requestOptions, this.options, metadata)
-			// kilocode_change end
-
-			this.logToFile("REQUEST", requestOptions)
 
 			let response
 			try {
@@ -296,9 +274,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				throw handleOpenAIError(error, this.providerName)
 			}
 
-			this.logToFile("RESPONSE", response)
-
-			// kilocode_change start: reasoning & tool calls.
+			// kilocode_change start: reasoning
 			const message = response.choices[0]?.message
 			if (message) {
 				if ("reasoning" in message && typeof message.reasoning === "string") {
@@ -310,17 +286,29 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				if (message.content) {
 					yield {
 						type: "text",
-						text: message.content,
-					}
-				}
-				if (getActiveToolUseStyle(this.options) === "json" && message.tool_calls) {
-					yield {
-						type: "native_tool_calls",
-						toolCalls: message.tool_calls,
+						text: message.content || "",
 					}
 				}
 			}
 			// kilocode_change end
+
+			if (message?.tool_calls) {
+				for (const toolCall of message.tool_calls) {
+					if (toolCall.type === "function") {
+						yield {
+							type: "tool_call",
+							id: toolCall.id,
+							name: toolCall.function.name,
+							arguments: toolCall.function.arguments,
+						}
+					}
+				}
+			}
+
+			yield {
+				type: "text",
+				text: message?.content || "",
+			}
 
 			yield this.processUsageMetrics(response.usage, modelInfo)
 		}
@@ -357,8 +345,6 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			// Add max_tokens if needed
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
 
-			this.logToFile("REQUEST", requestOptions)
-
 			let response
 			try {
 				response = await this.client.chat.completions.create(
@@ -369,9 +355,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				throw handleOpenAIError(error, this.providerName)
 			}
 
-			this.logToFile("RESPONSE", response)
-
-			return response.choices[0]?.message.content || ""
+			return response.choices?.[0]?.message.content || ""
 		} catch (error) {
 			if (error instanceof Error) {
 				throw new Error(`${this.providerName} completion error: ${error.message}`)
@@ -385,6 +369,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 		modelId: string,
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
+		metadata?: ApiHandlerCreateMessageMetadata,
 	): ApiStream {
 		const modelInfo = this.getModel().info
 		const methodIsAzureAiInference = this._isAzureAiInference(this.options.openAiBaseUrl)
@@ -399,20 +384,23 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 						role: "developer",
 						content: `Formatting re-enabled\n${systemPrompt}`,
 					},
-					...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options)),
+					...convertToOpenAiMessages(messages),
 				],
 				stream: true,
 				...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
 				reasoning_effort: modelInfo.reasoningEffort as "low" | "medium" | "high" | undefined,
 				temperature: undefined,
+				...(metadata?.tools && { tools: this.convertToolsForOpenAI(metadata.tools) }),
+				...(metadata?.tool_choice && { tool_choice: metadata.tool_choice }),
+				...(metadata?.toolProtocol === "native" && {
+					parallel_tool_calls: metadata.parallelToolCalls ?? false,
+				}),
 			}
 
 			// O3 family models do not support the deprecated max_tokens parameter
 			// but they do support max_completion_tokens (the modern OpenAI parameter)
 			// This allows O3 models to limit response length when includeMaxTokens is enabled
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
-
-			this.logToFile("REQUEST", requestOptions)
 
 			let stream
 			try {
@@ -433,18 +421,21 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 						role: "developer",
 						content: `Formatting re-enabled\n${systemPrompt}`,
 					},
-					...convertToOpenAiMessages(messages, getActiveToolUseStyle(this.options)),
+					...convertToOpenAiMessages(messages),
 				],
 				reasoning_effort: modelInfo.reasoningEffort as "low" | "medium" | "high" | undefined,
 				temperature: undefined,
+				...(metadata?.tools && { tools: this.convertToolsForOpenAI(metadata.tools) }),
+				...(metadata?.tool_choice && { tool_choice: metadata.tool_choice }),
+				...(metadata?.toolProtocol === "native" && {
+					parallel_tool_calls: metadata.parallelToolCalls ?? false,
+				}),
 			}
 
 			// O3 family models do not support the deprecated max_tokens parameter
 			// but they do support max_completion_tokens (the modern OpenAI parameter)
 			// This allows O3 models to limit response length when includeMaxTokens is enabled
 			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
-
-			this.logToFile("REQUEST", requestOptions)
 
 			let response
 			try {
@@ -456,11 +447,23 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				throw handleOpenAIError(error, this.providerName)
 			}
 
-			this.logToFile("RESPONSE", response)
+			const message = response.choices?.[0]?.message
+			if (message?.tool_calls) {
+				for (const toolCall of message.tool_calls) {
+					if (toolCall.type === "function") {
+						yield {
+							type: "tool_call",
+							id: toolCall.id,
+							name: toolCall.function.name,
+							arguments: toolCall.function.arguments,
+						}
+					}
+				}
+			}
 
 			yield {
 				type: "text",
-				text: response.choices[0]?.message.content || "",
+				text: message?.content || "",
 			}
 			yield this.processUsageMetrics(response.usage)
 		}
@@ -468,11 +471,27 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 
 	private async *handleStreamResponse(stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>): ApiStream {
 		for await (const chunk of stream) {
-			const delta = chunk.choices[0]?.delta
-			if (delta?.content) {
-				yield {
-					type: "text",
-					text: delta.content,
+			const delta = chunk.choices?.[0]?.delta
+
+			if (delta) {
+				if (delta.content) {
+					yield {
+						type: "text",
+						text: delta.content,
+					}
+				}
+
+				// Emit raw tool call chunks - NativeToolCallParser handles state management
+				if (delta.tool_calls) {
+					for (const toolCall of delta.tool_calls) {
+						yield {
+							type: "tool_call_partial",
+							index: toolCall.index,
+							id: toolCall.id,
+							name: toolCall.function?.name,
+							arguments: toolCall.function?.arguments,
+						}
+					}
 				}
 			}
 
@@ -526,14 +545,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 
 export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiHeaders?: Record<string, string>) {
 	try {
-		console.log("[getOpenAiModels] Called with:", {
-			hasBaseUrl: !!baseUrl,
-			hasApiKey: !!apiKey,
-			hasHeaders: !!openAiHeaders,
-		})
-
 		if (!baseUrl) {
-			console.log("[getOpenAiModels] No baseUrl provided, returning empty array")
 			return []
 		}
 
@@ -541,7 +553,6 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 		const trimmedBaseUrl = baseUrl.trim()
 
 		if (!URL.canParse(trimmedBaseUrl)) {
-			console.log("[getOpenAiModels] Invalid baseUrl:", trimmedBaseUrl)
 			return []
 		}
 
@@ -559,33 +570,25 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 			config["headers"] = headers
 		}
 
-		console.log("[getOpenAiModels] Fetching from:", `${trimmedBaseUrl}/models`)
 		const response = await axios.get(`${trimmedBaseUrl}/models`, config)
 		const modelsArray = response.data?.data?.map((model: any) => model.id) || []
-		console.log("[getOpenAiModels] Success:", modelsArray.length, "models")
 		return [...new Set<string>(modelsArray)]
 	} catch (error) {
-		console.log("[getOpenAiModels] Error:", error instanceof Error ? error.message : error)
 		return []
 	}
 }
 
-// kilocode_change start: Convert OpenAI models list to ModelRecord format
+// Return OpenAI models as a ModelRecord for caching/selection.
+// OpenAI-compatible endpoints do not provide rich metadata, so we apply sane defaults.
 export async function getOpenAiModelsRecord(
 	baseUrl?: string,
 	apiKey?: string,
 	openAiHeaders?: Record<string, string>,
 ): Promise<Record<string, ModelInfo>> {
 	const modelIds = await getOpenAiModels(baseUrl, apiKey, openAiHeaders)
-	const modelsRecord: Record<string, ModelInfo> = {}
-
-	for (const modelId of modelIds) {
-		modelsRecord[modelId] = {
-			...openAiModelInfoSaneDefaults,
-			description: modelId,
-		}
+	const record: Record<string, ModelInfo> = {}
+	for (const id of modelIds) {
+		record[id] = { ...openAiModelInfoSaneDefaults, description: id }
 	}
-
-	return modelsRecord
+	return record
 }
-// kilocode_change end

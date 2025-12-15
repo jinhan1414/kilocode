@@ -98,17 +98,19 @@
 	},
 	"ghost": {
 		"statusBar": {
-			"enabled": "$(sparkle) Kilo Code Autocomplete",
-			"disabled": "$(circle-slash) Kilo Code Autocomplete",
-			"warning": "$(warning) Kilo Code Autocomplete",
+			"enabled": "$(kilo-logo) Autocomplete",
+			"warning": "$(warning) Autocomplete",
 			"tooltip": {
 				"basic": "Kilo Code Autocomplete",
 				"disabled": "Kilo Code Autocomplete (disabled)",
 				"tokenError": "A valid token must be set to use Autocomplete",
-				"lastCompletion": "Last suggestion:",
 				"sessionTotal": "Session total cost:",
 				"provider": "Provider:",
-				"model": "Model:"
+				"model": "Model:",
+				"profile": "Profile: ",
+				"defaultProfile": "Default",
+				"completionSummary": "Performed {{count}} completions between {{startTime}} and {{endTime}}, for a total cost of {{cost}}.",
+				"providerInfo": "Autocompletions provided by {{model}} via {{provider}}."
 			},
 			"cost": {
 				"zero": "$0.00",
@@ -154,6 +156,29 @@
 		"checkpointsUnavailable": "Cannot show new changes, checkpoints are unavailable.",
 		"noChanges": "Cannot show new changes, no changes were found.",
 		"error": "Cannot show new changes, an error occured."
+	},
+	"agentManager": {
+		"errors": {
+			"cliOutdated": "Your Kilocode CLI version is outdated and doesn't support the Agent Manager. Please update to the latest version.",
+			"cliNotFound": "Kilocode CLI not found. Please install it to use the Agent Manager.",
+			"sessionFailed": "Failed to start agent session",
+			"sessionFailedWithMessage": "Failed to start agent session: {{message}}"
+		},
+		"actions": {
+			"updateInstructions": "Update Instructions",
+			"installInstructions": "Install Instructions",
+			"getHelp": "Get Help",
+			"runInTerminal": "Run in Terminal",
+			"updateGlobal": "Update Global",
+			"updateLocal": "Update Local",
+			"installGlobal": "Install Global",
+			"installLocal": "Install Local",
+			"loginCli": "Run kilocode auth"
+		},
+		"terminal": {
+			"installMessage": "Running npm install to install the Kilocode CLI. Once complete, you can close this terminal and try starting the Agent Manager again.",
+			"authReminder": "If this is your first install, run `kilocode auth` to sign in before starting the Agent Manager."
+		}
 	},
 	"terminalCommandGenerator": {
 		"tipMessage": "Kilo: Press {{shortcut}} to generate terminal commands",

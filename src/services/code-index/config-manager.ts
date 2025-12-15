@@ -12,6 +12,10 @@ import { getDefaultModelId, getModelDimension, getModelScoreThreshold } from "..
 export class CodeIndexConfigManager {
 	private codebaseIndexEnabled: boolean = false
 	private embedderProvider: EmbedderProvider = "openai"
+	// kilocode_change - start
+	private vectorStoreProvider: "lancedb" | "qdrant" = "qdrant"
+	private lancedbVectorStoreDirectory?: string
+	// kilocode_change - end
 	private modelId?: string
 	private modelDimension?: number
 	private openAiOptions?: ApiHandlerOptions
@@ -20,11 +24,16 @@ export class CodeIndexConfigManager {
 	private geminiOptions?: { apiKey: string }
 	private mistralOptions?: { apiKey: string }
 	private vercelAiGatewayOptions?: { apiKey: string }
-	private openRouterOptions?: { apiKey: string }
+	private bedrockOptions?: { region: string; profile?: string }
+	private openRouterOptions?: { apiKey: string; specificProvider?: string }
 	private qdrantUrl?: string = "http://localhost:6333"
 	private qdrantApiKey?: string
 	private searchMinScore?: number
 	private searchMaxResults?: number
+	// kilocode_change start
+	private embeddingBatchSize?: number
+	private scannerMaxBatchRetries?: number
+	// kilocode_change end
 
 	// kilocode_change start: Kilo org indexing props
 	private _kiloOrgProps: {
@@ -91,12 +100,23 @@ export class CodeIndexConfigManager {
 		// Load configuration from storage (globalState - shared across projects)
 		// NOTE: codebaseIndexEnabled is NOT in this config - it's project-specific in workspaceState
 		const codebaseIndexConfig = this.contextProxy?.getGlobalState("codebaseIndexConfig") ?? {
+			codebaseIndexEnabled: false,
 			codebaseIndexQdrantUrl: "http://localhost:6333",
 			codebaseIndexEmbedderProvider: "openai",
+			// kilocode_change - start
+			codebaseIndexVectorStoreProvider: "qdrant",
+			codebaseIndexLancedbVectorStoreDirectory: undefined,
+			// kilocode_change - end
 			codebaseIndexEmbedderBaseUrl: "",
 			codebaseIndexEmbedderModelId: "",
 			codebaseIndexSearchMinScore: undefined,
 			codebaseIndexSearchMaxResults: undefined,
+			// kilocode_change start
+			codebaseIndexEmbeddingBatchSize: undefined,
+			codebaseIndexScannerMaxBatchRetries: undefined,
+			// kilocode_change end
+			codebaseIndexBedrockRegion: "us-east-1",
+			codebaseIndexBedrockProfile: "",
 		}
 
 		const {
@@ -104,9 +124,16 @@ export class CodeIndexConfigManager {
 			codebaseIndexEmbedderProvider,
 			codebaseIndexEmbedderBaseUrl,
 			codebaseIndexEmbedderModelId,
+			codebaseIndexLancedbVectorStoreDirectory, // kilocode_change
 			codebaseIndexSearchMinScore,
 			codebaseIndexSearchMaxResults,
+			// kilocode_change start
+			codebaseIndexEmbeddingBatchSize,
+			codebaseIndexScannerMaxBatchRetries,
+			// kilocode_change end
 		} = codebaseIndexConfig
+		// kilocode_change
+		const codebaseIndexVectorStoreProvider = codebaseIndexConfig.codebaseIndexVectorStoreProvider ?? "qdrant"
 
 		const openAiKey = this.contextProxy?.getSecret("codeIndexOpenAiKey") ?? ""
 		const qdrantApiKey = this.contextProxy?.getSecret("codeIndexQdrantApiKey") ?? ""
@@ -116,15 +143,26 @@ export class CodeIndexConfigManager {
 		const geminiApiKey = this.contextProxy?.getSecret("codebaseIndexGeminiApiKey") ?? ""
 		const mistralApiKey = this.contextProxy?.getSecret("codebaseIndexMistralApiKey") ?? ""
 		const vercelAiGatewayApiKey = this.contextProxy?.getSecret("codebaseIndexVercelAiGatewayApiKey") ?? ""
+		const bedrockRegion = codebaseIndexConfig.codebaseIndexBedrockRegion ?? "us-east-1"
+		const bedrockProfile = codebaseIndexConfig.codebaseIndexBedrockProfile ?? ""
 		const openRouterApiKey = this.contextProxy?.getSecret("codebaseIndexOpenRouterApiKey") ?? ""
+		const openRouterSpecificProvider = codebaseIndexConfig.codebaseIndexOpenRouterSpecificProvider ?? ""
 
-		// Update instance variables with configuration
-		// Note: codebaseIndexEnabled is NOT loaded here - it will be loaded from workspaceState in loadConfiguration()
-		// This ensures each project has independent enabled state
+		// Update instance variables with configuration.
+		// Note: codebaseIndexEnabled is loaded from workspaceState elsewhere.
+		this.codebaseIndexEnabled = this.codebaseIndexEnabled ?? false
+		// kilocode_change - start
+		this.vectorStoreProvider = codebaseIndexVectorStoreProvider ?? "qdrant"
+		this.lancedbVectorStoreDirectory = codebaseIndexLancedbVectorStoreDirectory
+		// kilocode_change - end
 		this.qdrantUrl = codebaseIndexQdrantUrl
 		this.qdrantApiKey = qdrantApiKey ?? ""
 		this.searchMinScore = codebaseIndexSearchMinScore
 		this.searchMaxResults = codebaseIndexSearchMaxResults
+		// kilocode_change start
+		this.embeddingBatchSize = codebaseIndexEmbeddingBatchSize
+		this.scannerMaxBatchRetries = codebaseIndexScannerMaxBatchRetries
+		// kilocode_change end
 
 		// Validate and set model dimension
 		const rawDimension = codebaseIndexConfig.codebaseIndexEmbedderModelDimension
@@ -155,6 +193,8 @@ export class CodeIndexConfigManager {
 			this.embedderProvider = "mistral"
 		} else if (codebaseIndexEmbedderProvider === "vercel-ai-gateway") {
 			this.embedderProvider = "vercel-ai-gateway"
+		} else if ((codebaseIndexEmbedderProvider as string) === "bedrock") {
+			this.embedderProvider = "bedrock"
 		} else if (codebaseIndexEmbedderProvider === "openrouter") {
 			this.embedderProvider = "openrouter"
 		} else {
@@ -178,7 +218,13 @@ export class CodeIndexConfigManager {
 		this.geminiOptions = geminiApiKey ? { apiKey: geminiApiKey } : undefined
 		this.mistralOptions = mistralApiKey ? { apiKey: mistralApiKey } : undefined
 		this.vercelAiGatewayOptions = vercelAiGatewayApiKey ? { apiKey: vercelAiGatewayApiKey } : undefined
-		this.openRouterOptions = openRouterApiKey ? { apiKey: openRouterApiKey } : undefined
+		this.openRouterOptions = openRouterApiKey
+			? { apiKey: openRouterApiKey, specificProvider: openRouterSpecificProvider || undefined }
+			: undefined
+		// Set bedrockOptions if region is provided (profile is optional)
+		this.bedrockOptions = bedrockRegion
+			? { region: bedrockRegion, profile: bedrockProfile || undefined }
+			: undefined
 	}
 
 	/**
@@ -197,6 +243,7 @@ export class CodeIndexConfigManager {
 			geminiOptions?: { apiKey: string }
 			mistralOptions?: { apiKey: string }
 			vercelAiGatewayOptions?: { apiKey: string }
+			bedrockOptions?: { region: string; profile?: string }
 			openRouterOptions?: { apiKey: string }
 			qdrantUrl?: string
 			qdrantApiKey?: string
@@ -212,6 +259,10 @@ export class CodeIndexConfigManager {
 			enabled: this.codebaseIndexEnabled,
 			configured: this.isConfigured(),
 			embedderProvider: this.embedderProvider,
+			// kilocode_change - start
+			vectorStoreProvider: this.vectorStoreProvider,
+			lancedbVectorStoreDirectory: this.lancedbVectorStoreDirectory,
+			// kilocode_change - end
 			modelId: this.modelId,
 			modelDimension: this.modelDimension,
 			openAiKey: this.openAiOptions?.openAiNativeApiKey ?? "",
@@ -221,7 +272,10 @@ export class CodeIndexConfigManager {
 			geminiApiKey: this.geminiOptions?.apiKey ?? "",
 			mistralApiKey: this.mistralOptions?.apiKey ?? "",
 			vercelAiGatewayApiKey: this.vercelAiGatewayOptions?.apiKey ?? "",
+			bedrockRegion: this.bedrockOptions?.region ?? "",
+			bedrockProfile: this.bedrockOptions?.profile ?? "",
 			openRouterApiKey: this.openRouterOptions?.apiKey ?? "",
+			openRouterSpecificProvider: this.openRouterOptions?.specificProvider ?? "",
 			qdrantUrl: this.qdrantUrl ?? "",
 			qdrantApiKey: this.qdrantApiKey ?? "",
 		}
@@ -254,6 +308,7 @@ export class CodeIndexConfigManager {
 				geminiOptions: this.geminiOptions,
 				mistralOptions: this.mistralOptions,
 				vercelAiGatewayOptions: this.vercelAiGatewayOptions,
+				bedrockOptions: this.bedrockOptions,
 				openRouterOptions: this.openRouterOptions,
 				qdrantUrl: this.qdrantUrl,
 				qdrantApiKey: this.qdrantApiKey,
@@ -304,6 +359,12 @@ export class CodeIndexConfigManager {
 			const qdrantUrl = this.qdrantUrl
 			const isConfigured = !!(apiKey && qdrantUrl)
 			return isConfigured
+		} else if (this.embedderProvider === "bedrock") {
+			// Only region is required for Bedrock (profile is optional)
+			const region = this.bedrockOptions?.region
+			const qdrantUrl = this.qdrantUrl
+			const isConfigured = !!(region && qdrantUrl)
+			return isConfigured
 		} else if (this.embedderProvider === "openrouter") {
 			const apiKey = this.openRouterOptions?.apiKey
 			const qdrantUrl = this.qdrantUrl
@@ -344,9 +405,16 @@ export class CodeIndexConfigManager {
 		const prevGeminiApiKey = prev?.geminiApiKey ?? ""
 		const prevMistralApiKey = prev?.mistralApiKey ?? ""
 		const prevVercelAiGatewayApiKey = prev?.vercelAiGatewayApiKey ?? ""
+		const prevBedrockRegion = prev?.bedrockRegion ?? ""
+		const prevBedrockProfile = prev?.bedrockProfile ?? ""
 		const prevOpenRouterApiKey = prev?.openRouterApiKey ?? ""
+		const prevOpenRouterSpecificProvider = prev?.openRouterSpecificProvider ?? ""
 		const prevQdrantUrl = prev?.qdrantUrl ?? ""
 		const prevQdrantApiKey = prev?.qdrantApiKey ?? ""
+		// kilocode_change - start
+		const prevVectorStoreProvider = prev?.vectorStoreProvider ?? "qdrant"
+		const prevLocalDbPath = prev?.lancedbVectorStoreDirectory ?? ""
+		// kilocode_change - end
 
 		// 1. Transition from disabled/unconfigured to enabled/configured
 		if ((!prevEnabled || !prevConfigured) && this.codebaseIndexEnabled && nowConfigured) {
@@ -374,6 +442,18 @@ export class CodeIndexConfigManager {
 			return true
 		}
 
+		// kilocode_change - start
+		// Vector store provider change
+		if (prevVectorStoreProvider !== this.vectorStoreProvider) {
+			return true
+		}
+
+		// Local DB path change (only affects lancedb vector store)
+		if (this.vectorStoreProvider === "lancedb" && prevLocalDbPath !== (this.lancedbVectorStoreDirectory ?? "")) {
+			return true
+		}
+		// kilocode_change - end
+
 		// Authentication changes (API keys)
 		const currentOpenAiKey = this.openAiOptions?.openAiNativeApiKey ?? ""
 		const currentOllamaBaseUrl = this.ollamaOptions?.ollamaBaseUrl ?? ""
@@ -383,7 +463,10 @@ export class CodeIndexConfigManager {
 		const currentGeminiApiKey = this.geminiOptions?.apiKey ?? ""
 		const currentMistralApiKey = this.mistralOptions?.apiKey ?? ""
 		const currentVercelAiGatewayApiKey = this.vercelAiGatewayOptions?.apiKey ?? ""
+		const currentBedrockRegion = this.bedrockOptions?.region ?? ""
+		const currentBedrockProfile = this.bedrockOptions?.profile ?? ""
 		const currentOpenRouterApiKey = this.openRouterOptions?.apiKey ?? ""
+		const currentOpenRouterSpecificProvider = this.openRouterOptions?.specificProvider ?? ""
 		const currentQdrantUrl = this.qdrantUrl ?? ""
 		const currentQdrantApiKey = this.qdrantApiKey ?? ""
 
@@ -414,7 +497,16 @@ export class CodeIndexConfigManager {
 			return true
 		}
 
+		if (prevBedrockRegion !== currentBedrockRegion || prevBedrockProfile !== currentBedrockProfile) {
+			return true
+		}
+
 		if (prevOpenRouterApiKey !== currentOpenRouterApiKey) {
+			return true
+		}
+
+		// OpenRouter specific provider change
+		if (prevOpenRouterSpecificProvider !== currentOpenRouterSpecificProvider) {
 			return true
 		}
 
@@ -468,6 +560,10 @@ export class CodeIndexConfigManager {
 		return {
 			isConfigured: this.isConfigured(),
 			embedderProvider: this.embedderProvider,
+			// kilocode_change - start
+			vectorStoreProvider: this.vectorStoreProvider ?? "qdrant",
+			lancedbVectorStoreDirectoryPlaceholder: this.lancedbVectorStoreDirectory,
+			// kilocode_change - end
 			modelId: this.modelId,
 			modelDimension: this.modelDimension,
 			openAiOptions: this.openAiOptions,
@@ -476,11 +572,16 @@ export class CodeIndexConfigManager {
 			geminiOptions: this.geminiOptions,
 			mistralOptions: this.mistralOptions,
 			vercelAiGatewayOptions: this.vercelAiGatewayOptions,
+			bedrockOptions: this.bedrockOptions,
 			openRouterOptions: this.openRouterOptions,
 			qdrantUrl: this.qdrantUrl,
 			qdrantApiKey: this.qdrantApiKey,
 			searchMinScore: this.currentSearchMinScore,
 			searchMaxResults: this.currentSearchMaxResults,
+			// kilocode_change start
+			embeddingBatchSize: this.currentEmbeddingBatchSize,
+			scannerMaxBatchRetries: this.currentScannerMaxBatchRetries,
+			// kilocode_change end
 		}
 	}
 
@@ -562,4 +663,22 @@ export class CodeIndexConfigManager {
 	public get currentSearchMaxResults(): number {
 		return this.searchMaxResults ?? DEFAULT_MAX_SEARCH_RESULTS
 	}
+
+	// kilocode_change start
+	/**
+	 * Gets the configured embedding batch size.
+	 * Returns user setting if configured, otherwise returns undefined (will use default from constants).
+	 */
+	public get currentEmbeddingBatchSize(): number | undefined {
+		return this.embeddingBatchSize
+	}
+
+	/**
+	 * Gets the configured scanner max batch retries.
+	 * Returns user setting if configured, otherwise returns undefined (will use default from constants).
+	 */
+	public get currentScannerMaxBatchRetries(): number | undefined {
+		return this.scannerMaxBatchRetries
+	}
+	// kilocode_change end
 }

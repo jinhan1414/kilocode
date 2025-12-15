@@ -3,6 +3,8 @@ import {
 	type ProviderSettings,
 	anthropicDefaultModelId,
 	anthropicModels,
+	basetenModels,
+	basetenDefaultModelId,
 	bedrockDefaultModelId,
 	bedrockModels,
 	deepSeekDefaultModelId,
@@ -47,6 +49,7 @@ import {
 	deepInfraDefaultModelId,
 	cerebrasModels,
 	cerebrasDefaultModelId,
+	nanoGptDefaultModelId, //kilocode_change
 	ovhCloudAiEndpointsDefaultModelId,
 	inceptionDefaultModelId,
 	minimaxModels,
@@ -249,6 +252,12 @@ export const getModelsByProvider = ({
 				defaultModel: inceptionDefaultModelId,
 			}
 		}
+		case "sap-ai-core": {
+			return {
+				models: routerModels["sap-ai-core"],
+				defaultModel: "",
+			}
+		}
 		// kilocode_change end
 		case "io-intelligence": {
 			return {
@@ -280,10 +289,24 @@ export const getModelsByProvider = ({
 				defaultModel: deepInfraDefaultModelId,
 			}
 		}
+		//kilocode_change start
+		case "nano-gpt": {
+			return {
+				models: routerModels["nano-gpt"],
+				defaultModel: nanoGptDefaultModelId,
+			}
+		}
+		//kilocode_change end
 		case "minimax": {
 			return {
 				models: minimaxModels,
 				defaultModel: minimaxDefaultModelId,
+			}
+		}
+		case "baseten": {
+			return {
+				models: basetenModels,
+				defaultModel: basetenDefaultModelId,
 			}
 		}
 		default:
@@ -306,6 +329,10 @@ export const useProviderModels = (apiConfiguration?: ProviderSettings) => {
 		chutesApiKey: apiConfiguration?.chutesApiKey,
 		geminiApiKey: apiConfiguration?.geminiApiKey,
 		googleGeminiBaseUrl: apiConfiguration?.googleGeminiBaseUrl,
+		//kilocode_change start
+		nanoGptApiKey: apiConfiguration?.nanoGptApiKey,
+		nanoGptModelList: apiConfiguration?.nanoGptModelList,
+		//kilocode_change end
 		syntheticApiKey: apiConfiguration?.syntheticApiKey, // kilocode_change
 		openAiApiKey: apiConfiguration?.openAiApiKey, // kilocode_change: 添加 openai 参数以支持动态模型刷新
 		openAiBaseUrl: apiConfiguration?.openAiBaseUrl, // kilocode_change

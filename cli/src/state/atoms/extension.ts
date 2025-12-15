@@ -11,6 +11,7 @@ import type {
 	RouterModels,
 	ProviderSettings,
 	McpServer,
+	ModeConfig,
 } from "../../types/messages.js"
 import { pendingOutputUpdatesAtom } from "./effects.js"
 
@@ -66,7 +67,7 @@ export const extensionModeAtom = atom<string>("code")
 /**
  * Atom to hold custom modes
  */
-export const customModesAtom = atom<unknown[]>([])
+export const customModesAtom = atom<ModeConfig[]>([])
 
 /**
  * Atom to hold MCP servers configuration
@@ -151,7 +152,7 @@ export const hasActiveTaskAtom = atom<boolean>((get) => {
  * Atom to track if the task was resumed via --continue flag
  * Prevents showing "Task ready to resume" message when already resumed
  */
-export const taskResumedViaContinueAtom = atom<boolean>(false)
+export const taskResumedViaContinueOrSessionAtom = atom<boolean>(false)
 
 /**
  * Derived atom to check if there's a resume_task ask pending
@@ -159,7 +160,7 @@ export const taskResumedViaContinueAtom = atom<boolean>(false)
  * But doesn't show the message if the task was already resumed via --continue
  */
 export const hasResumeTaskAtom = atom<boolean>((get) => {
-	const taskResumedViaContinue = get(taskResumedViaContinueAtom)
+	const taskResumedViaContinue = get(taskResumedViaContinueOrSessionAtom)
 	if (taskResumedViaContinue) {
 		return false
 	}

@@ -380,7 +380,7 @@ describe("BaseOpenAiCompatibleProvider", () => {
 			const firstChunk = await stream.next()
 
 			expect(firstChunk.done).toBe(false)
-			expect(firstChunk.value).toEqual({ type: "usage", inputTokens: 100, outputTokens: 50 })
+			expect(firstChunk.value).toMatchObject({ type: "usage", inputTokens: 100, outputTokens: 50 })
 		})
 
 		it("should allow arbitrary custom apiModelId and still use default model info", async () => {

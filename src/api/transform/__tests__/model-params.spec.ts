@@ -87,6 +87,38 @@ describe("getModelParams", () => {
 			expect(result.temperature).toBe(0.5)
 		})
 
+		it("should use model defaultTemperature over provider defaultTemperature", () => {
+			const modelWithDefaultTemp: ModelInfo = {
+				...baseModel,
+				defaultTemperature: 0.8,
+			}
+
+			const result = getModelParams({
+				...anthropicParams,
+				settings: {},
+				model: modelWithDefaultTemp,
+				defaultTemperature: 0.5,
+			})
+
+			expect(result.temperature).toBe(0.8)
+		})
+
+		it("should prefer settings temperature over model defaultTemperature", () => {
+			const modelWithDefaultTemp: ModelInfo = {
+				...baseModel,
+				defaultTemperature: 0.8,
+			}
+
+			const result = getModelParams({
+				...anthropicParams,
+				settings: { modelTemperature: 0.3 },
+				model: modelWithDefaultTemp,
+				defaultTemperature: 0.5,
+			})
+
+			expect(result.temperature).toBe(0.3)
+		})
+
 		it("should use model maxTokens when available", () => {
 			const model: ModelInfo = {
 				...baseModel,
@@ -545,6 +577,79 @@ describe("getModelParams", () => {
 			expect(result.reasoning).toEqual({ effort: "medium" })
 		})
 
+		it("should include 'minimal' effort for openai format", () => {
+			const model: ModelInfo = {
+				...baseModel,
+				// Array capability explicitly includes minimal
+				supportsReasoningEffort: ["minimal", "low", "medium", "high"] as any,
+			}
+
+			const result = getModelParams({
+				...openaiParams,
+				settings: { reasoningEffort: "minimal" as any },
+				model,
+			})
+
+			expect(result.reasoningEffort).toBe("minimal")
+			expect(result.reasoning).toEqual({ reasoning_effort: "minimal" })
+		})
+
+		it("should include 'none' effort for openai format", () => {
+			const model: ModelInfo = {
+				...baseModel,
+				// Array capability explicitly includes none
+				supportsReasoningEffort: ["none", "low", "medium", "high"] as any,
+			}
+
+			const result = getModelParams({
+				...openaiParams,
+				settings: { reasoningEffort: "none" as any },
+				model,
+			})
+
+			expect(result.reasoningEffort).toBe("none")
+			expect(result.reasoning).toEqual({ reasoning_effort: "none" })
+		})
+
+		it("should omit reasoning for 'disable' selection", () => {
+			const model: ModelInfo = {
+				...baseModel,
+				supportsReasoningEffort: true,
+			}
+
+			const result = getModelParams({
+				...openaiParams,
+				settings: { reasoningEffort: "disable" as any },
+				model,
+			})
+
+			expect(result.reasoningEffort).toBeUndefined()
+			expect(result.reasoning).toBeUndefined()
+		})
+
+		it("should include 'minimal' and 'none' for openrouter format", () => {
+			const model: ModelInfo = {
+				...baseModel,
+				// Array capability explicitly includes both
+				supportsReasoningEffort: ["none", "minimal", "low", "medium", "high"] as any,
+			}
+
+			const minimalRes = getModelParams({
+				...openrouterParams,
+				settings: { reasoningEffort: "minimal" as any },
+				model,
+			})
+			expect(minimalRes.reasoningEffort).toBe("minimal")
+			expect(minimalRes.reasoning).toEqual({ effort: "minimal" })
+
+			const noneRes = getModelParams({
+				...openrouterParams,
+				settings: { reasoningEffort: "none" as any },
+				model,
+			})
+			expect(noneRes.reasoningEffort).toBe("none")
+			expect(noneRes.reasoning).toEqual({ effort: "none" })
+		})
 		it("should not use reasoning effort for anthropic format", () => {
 			const model: ModelInfo = {
 				...baseModel,

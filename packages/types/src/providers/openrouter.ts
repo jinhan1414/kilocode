@@ -1,13 +1,14 @@
 import type { ModelInfo } from "../model.js"
 
 // https://openrouter.ai/models?order=newest&supported_parameters=tools
-export const openRouterDefaultModelId = "anthropic/claude-sonnet-4"
+export const openRouterDefaultModelId = "anthropic/claude-sonnet-4.5"
 
 export const openRouterDefaultModelInfo: ModelInfo = {
 	maxTokens: 8192,
 	contextWindow: 200_000,
 	supportsImages: true,
 	supportsPromptCache: true,
+	supportsNativeTools: true,
 	inputPrice: 3.0,
 	outputPrice: 15.0,
 	cacheWritesPrice: 3.75,
@@ -42,6 +43,7 @@ export const OPEN_ROUTER_PROMPT_CACHING_MODELS = new Set([
 	"anthropic/claude-opus-4.1",
 	"anthropic/claude-opus-4.5",
 	"anthropic/claude-haiku-4.5",
+	"anthropic/claude-opus-4.5",
 	"google/gemini-2.5-flash-preview",
 	"google/gemini-2.5-flash-preview:thinking",
 	"google/gemini-2.5-flash-preview-05-20",
@@ -73,6 +75,7 @@ export const OPEN_ROUTER_REASONING_BUDGET_MODELS = new Set([
 	"anthropic/claude-opus-4.5",
 	"anthropic/claude-sonnet-4",
 	"anthropic/claude-sonnet-4.5",
+	"anthropic/claude-opus-4.5",
 	"anthropic/claude-haiku-4.5",
 	"google/gemini-2.5-pro-preview",
 	"google/gemini-2.5-pro",

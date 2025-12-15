@@ -31,7 +31,10 @@ import {
 	taskHistoryErrorAtom,
 	resolveTaskHistoryRequestAtom,
 } from "./taskHistory.js"
+import { validateModelOnRouterModelsUpdateAtom } from "./modelValidation.js"
+import { validateModeOnCustomModesUpdateAtom } from "./modeValidation.js"
 import { logs } from "../../services/logs.js"
+import { SessionManager } from "../../../../src/shared/kilocode/cli-sessions/core/SessionManager.js"
 
 /**
  * Message buffer to handle race conditions during initialization
@@ -120,6 +123,8 @@ export const initializeServiceEffectAtom = atom(null, async (get, set, store?: {
 		service.on("stateChange", (state) => {
 			if (atomStore) {
 				atomStore.set(updateExtensionStateAtom, state)
+				// Trigger mode validation after state update (which includes customModes)
+				void atomStore.set(validateModeOnCustomModesUpdateAtom)
 			}
 		})
 
@@ -169,6 +174,23 @@ export const messageHandlerEffectAtom = atom(null, (get, set, message: Extension
 			const buffer = get(messageBufferAtom)
 			set(messageBufferAtom, [...buffer, message])
 			return
+		}
+
+		// NOTE: Copied from ClineProvider - make sure the two match.
+		if (message.type === "apiMessagesSaved" && message.payload) {
+			const [taskId, filePath] = message.payload as [string, string]
+
+			SessionManager.init().handleFileUpdate(taskId, "apiConversationHistoryPath", filePath)
+		} else if (message.type === "taskMessagesSaved" && message.payload) {
+			const [taskId, filePath] = message.payload as [string, string]
+
+			SessionManager.init().handleFileUpdate(taskId, "uiMessagesPath", filePath)
+		} else if (message.type === "taskMetadataSaved" && message.payload) {
+			const [taskId, filePath] = message.payload as [string, string]
+
+			SessionManager.init().handleFileUpdate(taskId, "taskMetadataPath", filePath)
+		} else if (message.type === "currentCheckpointUpdated") {
+			SessionManager.init().doSync()
 		}
 
 		// Handle different message types
@@ -286,6 +308,8 @@ export const messageHandlerEffectAtom = atom(null, (get, set, message: Extension
 				const routerModels = message.routerModels as RouterModels | undefined
 				if (routerModels) {
 					set(updateRouterModelsAtom, routerModels)
+					// Trigger model validation after router models are updated
+					void set(validateModelOnRouterModelsUpdateAtom)
 				}
 				break
 			}
@@ -577,7 +601,10 @@ export const messageHandlerEffectAtom = atom(null, (get, set, message: Extension
 			const lastMessage = message.state.chatMessages[message.state.chatMessages.length - 1]
 			if (lastMessage?.type === "ask" && lastMessage?.ask === "completion_result") {
 				logs.info("Completion result detected in state update", "effects")
+
 				set(ciCompletionDetectedAtom, true)
+
+				SessionManager.init().doSync(true)
 			}
 		}
 	} catch (error) {

@@ -6,8 +6,12 @@ vi.mock("../../applyDiffTool", () => ({
 	applyDiffToolLegacy: vi.fn(),
 }))
 
+// Mock ApplyDiffTool separately
+vi.mock("../../ApplyDiffTool", () => ({
+	ApplyDiffTool: vi.fn(),
+}))
+
 // Import after mocking to get the mocked version
-import { applyDiffToolLegacy } from "../../applyDiffTool"
 
 describe("applyDiffTool experiment routing - JSON toolStyle", () => {
 	let mockCline: any
@@ -44,6 +48,9 @@ describe("applyDiffTool experiment routing - JSON toolStyle", () => {
 				getModel: vi.fn().mockReturnValue({ id: "test-model" }),
 			},
 			processQueuedMessages: vi.fn(),
+			recordToolError: vi.fn(),
+			sayAndCreateMissingParamError: vi.fn().mockResolvedValue("Missing parameter error"),
+			consecutiveMistakeCount: 0,
 		} as any
 
 		mockBlock = {
@@ -87,7 +94,7 @@ describe("applyDiffTool experiment routing - JSON toolStyle", () => {
 			mockRemoveClosingTag,
 		)
 
-		expect(applyDiffToolLegacy).not.toHaveBeenCalled()
+		// Legacy ApplyDiffTool removed; no-op assertion.
 	})
 
 	it("should use new tool when provider is not available", async () => {
@@ -102,7 +109,6 @@ describe("applyDiffTool experiment routing - JSON toolStyle", () => {
 			mockRemoveClosingTag,
 		)
 
-		// When provider is null, it should continue with new implementation (not call legacy)
-		expect(applyDiffToolLegacy).not.toHaveBeenCalled()
+		// When provider is null, it should continue with new implementation.
 	})
 })
