@@ -49,7 +49,7 @@ vi.mock("../core/task-persistence", () => ({
 	saveTaskMessages: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { attemptCompletionTool } from "../core/tools/attemptCompletionTool"
+import { attemptCompletionTool } from "../core/tools/AttemptCompletionTool"
 import { ClineProvider } from "../core/webview/ClineProvider"
 import type { Task } from "../core/task/Task"
 import { readTaskMessages } from "../core/task-persistence/taskMessages"

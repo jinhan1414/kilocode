@@ -1,13 +1,13 @@
-import { applyDiffTool } from "../../multiApplyDiffTool"
+import { applyDiffTool } from "../../MultiApplyDiffTool"
 import { EXPERIMENT_IDS } from "../../../../shared/experiments"
 
 // Mock the applyDiffTool module
-vi.mock("../../applyDiffTool", () => ({
+vi.mock("../../MultiApplyDiffTool", () => ({
 	applyDiffToolLegacy: vi.fn(),
 }))
 
 // Mock ApplyDiffTool separately
-vi.mock("../../ApplyDiffTool", () => ({
+vi.mock("../../ApplyPatchTool", () => ({
 	ApplyDiffTool: vi.fn(),
 }))
 

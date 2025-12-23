@@ -8,7 +8,7 @@ vi.mock("vscode", () => ({
 	},
 }))
 
-import { applyDiffTool as multiApplyDiffTool } from "../multiApplyDiffTool"
+import { applyDiffTool as multiApplyDiffTool } from "../MultiApplyDiffTool"
 
 describe("applyDiffTool experiment routing", () => {
 	let mockCline: any

@@ -1,7 +1,7 @@
 // kilocode_change: file added
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { codebaseSearchTool } from "../codebaseSearchTool"
+import { codebaseSearchTool } from "../CodebaseSearchTool"
 import { formatResponse } from "../../prompts/responses"
 import { Task } from "../../task/Task"
 import { CodeIndexManager } from "../../../services/code-index/manager"

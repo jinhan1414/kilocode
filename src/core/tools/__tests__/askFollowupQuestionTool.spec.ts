@@ -1,4 +1,4 @@
-import { askFollowupQuestionTool } from "../askFollowupQuestionTool"
+import { askFollowupQuestionTool } from "../AskFollowupQuestionTool"
 import { ToolUse } from "../../../shared/tools"
 import { NativeToolCallParser } from "../../assistant-message/NativeToolCallParser"
 

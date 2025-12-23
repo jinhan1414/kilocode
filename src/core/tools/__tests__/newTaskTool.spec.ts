@@ -108,7 +108,7 @@ const mockCline = {
 }
 
 // Import the class to test AFTER mocks are set up
-import { newTaskTool } from "../newTaskTool"
+import { newTaskTool } from "../NewTaskTool"
 import type { ToolUse } from "../../../shared/tools"
 import { getModeBySlug } from "../../../shared/modes"
 import * as vscode from "vscode"
