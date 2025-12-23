@@ -1,135 +1,295 @@
 import path from "path"
+import delay from "delay"
+import * as vscode from "vscode"
 import fs from "fs/promises"
 
+import { Task } from "../task/Task"
+import { ClineSayTool } from "../../shared/ExtensionMessage"
+import { formatResponse } from "../prompts/responses"
+import { RecordSource } from "../context-tracking/FileContextTrackerTypes"
+import { fileExistsAtPath, createDirectoriesForFile } from "../../utils/fs"
+import { stripLineNumbers, everyLineHasLineNumbers } from "../../integrations/misc/extract-text"
+import { getReadablePath } from "../../utils/path"
+import { isPathOutsideWorkspace } from "../../utils/pathUtils"
+import { unescapeHtmlEntities } from "../../utils/text-normalization"
+import { DEFAULT_WRITE_DELAY_MS } from "@roo-code/types"
+import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
+import { convertNewFileToUnifiedDiff, computeDiffStats, sanitizeUnifiedDiff } from "../diff/stats"
 import { BaseTool, ToolCallbacks } from "./BaseTool"
 import type { ToolUse } from "../../shared/tools"
-import { formatResponse } from "../prompts/responses"
-import { fileExistsAtPath, createDirectoriesForFile } from "../../utils/fs"
-import { isPathOutsideWorkspace } from "../../utils/pathUtils"
-import { getReadablePath } from "../../utils/path"
-import { unescapeHtmlEntities } from "../../utils/text-normalization"
-import { everyLineHasLineNumbers, stripLineNumbers } from "../../integrations/misc/extract-text"
-import { Task } from "../task/Task"
+import { trackContribution } from "../../services/contribution-tracking/ContributionTrackingService" // kilocode_change
 
-type WriteToFileParams = { path: string; content: string }
+interface WriteToFileParams {
+	path: string
+	content: string
+}
 
 export class WriteToFileTool extends BaseTool<"write_to_file"> {
 	readonly name = "write_to_file" as const
 
 	parseLegacy(params: Partial<Record<string, string>>): WriteToFileParams {
 		return {
-			path: params.path ?? "",
-			content: params.content ?? "",
+			path: params.path || "",
+			content: params.content || "",
 		}
-	}
-
-	private preprocessContent(task: Task, content: string): string {
-		let processed = content
-		const fenceMatch = processed.match(/^```[\w-]*\s*\n([\s\S]*?)\n```$/)
-		if (fenceMatch) processed = fenceMatch[1]
-		const modelId = task.api?.getModel?.().id ?? ""
-		if (!modelId.toLowerCase().startsWith("claude")) {
-			processed = unescapeHtmlEntities(processed)
-		}
-		if (everyLineHasLineNumbers(processed)) {
-			processed = stripLineNumbers(processed)
-		}
-		return processed
-	}
-
-	override async handlePartial(task: Task, block: ToolUse<"write_to_file">): Promise<void> {
-		const legacy = this.parseLegacy(block.params as any)
-		const filePath = legacy.path
-		const content = legacy.content
-		if (!filePath || content === undefined) return
-
-		if (!task.diffViewProvider?.editType) {
-			const absolutePath = path.resolve(task.cwd, filePath)
-			const exists = await fileExistsAtPath(absolutePath)
-			task.diffViewProvider.editType = exists ? "modify" : "create"
-			if (!exists) await createDirectoriesForFile(absolutePath)
-		} else if (task.diffViewProvider.editType === "create") {
-			const absolutePath = path.resolve(task.cwd, filePath)
-			await createDirectoriesForFile(absolutePath)
-		}
-
-		await task.diffViewProvider?.open(filePath)
-		const processed = this.preprocessContent(task, content)
-		await task.diffViewProvider?.update(processed, false)
-		await task.ask?.("tool", processed, true).catch(() => {})
 	}
 
 	async execute(params: WriteToFileParams, task: Task, callbacks: ToolCallbacks): Promise<void> {
-		const { askApproval, handleError, pushToolResult, toolProtocol } = callbacks
-		const filePath = params.path
-		let content = params.content
+		const { pushToolResult, handleError, askApproval, removeClosingTag } = callbacks
+		const relPath = params.path
+		let newContent = params.content
 
-		if (!filePath) {
+		if (!relPath) {
 			task.consecutiveMistakeCount++
-			task.recordToolError?.("write_to_file")
+			task.recordToolError("write_to_file")
 			pushToolResult(await task.sayAndCreateMissingParamError("write_to_file", "path"))
+			await task.diffViewProvider.reset()
 			return
 		}
-		if (content === undefined) {
+
+		if (newContent === undefined) {
 			task.consecutiveMistakeCount++
-			task.recordToolError?.("write_to_file")
+			task.recordToolError("write_to_file")
 			pushToolResult(await task.sayAndCreateMissingParamError("write_to_file", "content"))
+			await task.diffViewProvider.reset()
 			return
+		}
+
+		const accessAllowed = task.rooIgnoreController?.validateAccess(relPath)
+
+		if (!accessAllowed) {
+			await task.say("rooignore_error", relPath)
+			pushToolResult(formatResponse.rooIgnoreError(relPath))
+			return
+		}
+
+		const isWriteProtected = task.rooProtectedController?.isWriteProtected(relPath) || false
+
+		let fileExists: boolean
+		const absolutePath = path.resolve(task.cwd, relPath)
+
+		if (task.diffViewProvider.editType !== undefined) {
+			fileExists = task.diffViewProvider.editType === "modify"
+		} else {
+			fileExists = await fileExistsAtPath(absolutePath)
+			task.diffViewProvider.editType = fileExists ? "modify" : "create"
+		}
+
+		// Create parent directories early for new files to prevent ENOENT errors
+		// in subsequent operations (e.g., diffViewProvider.open, fs.readFile)
+		if (!fileExists) {
+			await createDirectoriesForFile(absolutePath)
+		}
+		// kilocode_change start
+		if (typeof newContent !== "string") {
+			console.warn(`[WriteToFileTool] converting incorrect model output ${typeof newContent} to string`)
+			newContent = JSON.stringify(newContent, null, "\t")
+		}
+		// kilocode_change end
+
+		if (newContent.startsWith("```")) {
+			newContent = newContent.split("\n").slice(1).join("\n")
+		}
+
+		if (newContent.endsWith("```")) {
+			newContent = newContent.split("\n").slice(0, -1).join("\n")
+		}
+
+		if (!task.api.getModel().id.includes("claude")) {
+			newContent = unescapeHtmlEntities(newContent)
+		}
+
+		const fullPath = relPath ? path.resolve(task.cwd, removeClosingTag("path", relPath)) : ""
+		const isOutsideWorkspace = isPathOutsideWorkspace(fullPath)
+
+		const sharedMessageProps: ClineSayTool = {
+			tool: fileExists ? "editedExistingFile" : "newFileCreated",
+			path: getReadablePath(task.cwd, removeClosingTag("path", relPath)),
+			content: newContent,
+			isOutsideWorkspace,
+			isProtected: isWriteProtected,
 		}
 
 		try {
-			const absolutePath = path.resolve(task.cwd, filePath)
+			task.consecutiveMistakeCount = 0
 
-			if (task.rooIgnoreController && !task.rooIgnoreController.validateAccess(filePath)) {
-				task.consecutiveMistakeCount++
-				task.recordToolError?.("write_to_file")
-				pushToolResult(formatResponse.rooIgnoreError(getReadablePath(task.cwd, filePath)))
-				return
-			}
+			const provider = task.providerRef.deref()
+			const state = await provider?.getState()
+			const diagnosticsEnabled = state?.diagnosticsEnabled ?? true
+			const writeDelayMs = state?.writeDelayMs ?? DEFAULT_WRITE_DELAY_MS
+			const isPreventFocusDisruptionEnabled = experiments.isEnabled(
+				state?.experiments ?? {},
+				EXPERIMENT_IDS.PREVENT_FOCUS_DISRUPTION,
+			)
 
-			if (!task.diffViewProvider?.editType) {
-				const exists = await fileExistsAtPath(absolutePath)
-				task.diffViewProvider.editType = exists ? "modify" : "create"
-				if (!exists) await createDirectoriesForFile(absolutePath)
-			} else if (task.diffViewProvider.editType === "create") {
-				await createDirectoriesForFile(absolutePath)
-			}
-
-			isPathOutsideWorkspace(absolutePath)
-
-			if (task.diffViewProvider.editType === "create") {
-				try {
-					await fs.access(absolutePath)
-				} catch {
-					await createDirectoriesForFile(absolutePath)
-					await fs.writeFile(absolutePath, "", "utf8")
+			if (isPreventFocusDisruptionEnabled) {
+				task.diffViewProvider.editType = fileExists ? "modify" : "create"
+				if (fileExists) {
+					const absolutePath = path.resolve(task.cwd, relPath)
+					task.diffViewProvider.originalContent = await fs.readFile(absolutePath, "utf-8")
+				} else {
+					task.diffViewProvider.originalContent = ""
 				}
+
+				let unified = fileExists
+					? formatResponse.createPrettyPatch(relPath, task.diffViewProvider.originalContent, newContent)
+					: convertNewFileToUnifiedDiff(newContent, relPath)
+				unified = sanitizeUnifiedDiff(unified)
+				const completeMessage = JSON.stringify({
+					...sharedMessageProps,
+					content: unified,
+					diffStats: computeDiffStats(unified) || undefined,
+				} satisfies ClineSayTool)
+
+				const didApprove = await askApproval("tool", completeMessage, undefined, isWriteProtected)
+
+				// kilocode_change start
+				// Track contribution (fire-and-forget, never blocks user workflow)
+				trackContribution({
+					cwd: task.cwd,
+					filePath: relPath,
+					unifiedDiff: unified,
+					status: didApprove ? "accepted" : "rejected",
+					taskId: task.taskId,
+					organizationId: state?.apiConfiguration?.kilocodeOrganizationId,
+					kilocodeToken: state?.apiConfiguration?.kilocodeToken || "",
+				})
+				// kilocode_change end
+
+				if (!didApprove) {
+					return
+				}
+
+				await task.diffViewProvider.saveDirectly(relPath, newContent, false, diagnosticsEnabled, writeDelayMs)
+			} else {
+				if (!task.diffViewProvider.isEditing) {
+					const partialMessage = JSON.stringify(sharedMessageProps)
+					await task.ask("tool", partialMessage, true).catch(() => {})
+					await task.diffViewProvider.open(relPath)
+				}
+
+				await task.diffViewProvider.update(
+					everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
+					true,
+				)
+
+				await delay(300)
+				task.diffViewProvider.scrollToFirstDiff()
+
+				let unified = fileExists
+					? formatResponse.createPrettyPatch(relPath, task.diffViewProvider.originalContent, newContent)
+					: convertNewFileToUnifiedDiff(newContent, relPath)
+				unified = sanitizeUnifiedDiff(unified)
+				const completeMessage = JSON.stringify({
+					...sharedMessageProps,
+					content: unified,
+					diffStats: computeDiffStats(unified) || undefined,
+				} satisfies ClineSayTool)
+
+				const didApprove = await askApproval("tool", completeMessage, undefined, isWriteProtected)
+
+				// kilocode_change start
+				// Track contribution (fire-and-forget, never blocks user workflow)
+				trackContribution({
+					cwd: task.cwd,
+					filePath: relPath,
+					unifiedDiff: unified,
+					status: didApprove ? "accepted" : "rejected",
+					taskId: task.taskId,
+					organizationId: state?.apiConfiguration?.kilocodeOrganizationId,
+					kilocodeToken: state?.apiConfiguration?.kilocodeToken || "",
+				})
+				// kilocode_change end
+
+				if (!didApprove) {
+					await task.diffViewProvider.revertChanges()
+					return
+				}
+
+				await task.diffViewProvider.saveChanges(diagnosticsEnabled, writeDelayMs)
 			}
 
-			await task.diffViewProvider?.open(filePath)
-			content = this.preprocessContent(task, content)
-			await task.diffViewProvider?.update(content, true)
-
-			const approved = await askApproval("tool")
-			if (!approved) {
-				await task.diffViewProvider?.revertChanges()
-				return
+			if (relPath) {
+				await task.fileContextTracker.trackFileContext(relPath, "roo_edited" as RecordSource)
 			}
 
-			const saveResult = await task.diffViewProvider?.saveChanges()
-			const isNewFile = task.diffViewProvider?.editType === "create"
-			await task.fileContextTracker?.trackFileContext(filePath, "roo_edited")
 			task.didEditFile = true
 
-			if (task.diffViewProvider?.pushToolWriteResult) {
-				const msg = await task.diffViewProvider.pushToolWriteResult(task, task.cwd, isNewFile)
-				pushToolResult(saveResult?.newProblemsMessage ? `${msg}${saveResult.newProblemsMessage}` : msg)
-			} else {
-				pushToolResult(formatResponse.toolResult("write_to_file completed"))
-			}
+			const message = await task.diffViewProvider.pushToolWriteResult(task, task.cwd, !fileExists)
+
+			pushToolResult(message)
+
+			await task.diffViewProvider.reset()
+
+			task.processQueuedMessages()
+
+			return
 		} catch (error) {
 			await handleError("writing file", error as Error)
-			await task.diffViewProvider?.reset()
+			await task.diffViewProvider.reset()
+			return
+		}
+	}
+
+	override async handlePartial(task: Task, block: ToolUse<"write_to_file">): Promise<void> {
+		const relPath: string | undefined = block.params.path
+		let newContent: string | undefined = block.params.content
+
+		if (!relPath || newContent === undefined) {
+			return
+		}
+
+		const provider = task.providerRef.deref()
+		const state = await provider?.getState()
+		const isPreventFocusDisruptionEnabled = experiments.isEnabled(
+			state?.experiments ?? {},
+			EXPERIMENT_IDS.PREVENT_FOCUS_DISRUPTION,
+		)
+
+		if (isPreventFocusDisruptionEnabled) {
+			return
+		}
+
+		let fileExists: boolean
+		const absolutePath = path.resolve(task.cwd, relPath)
+
+		if (task.diffViewProvider.editType !== undefined) {
+			fileExists = task.diffViewProvider.editType === "modify"
+		} else {
+			fileExists = await fileExistsAtPath(absolutePath)
+			task.diffViewProvider.editType = fileExists ? "modify" : "create"
+		}
+
+		// Create parent directories early for new files to prevent ENOENT errors
+		// in subsequent operations (e.g., diffViewProvider.open)
+		if (!fileExists) {
+			await createDirectoriesForFile(absolutePath)
+		}
+
+		const isWriteProtected = task.rooProtectedController?.isWriteProtected(relPath) || false
+		const fullPath = absolutePath
+		const isOutsideWorkspace = isPathOutsideWorkspace(fullPath)
+
+		const sharedMessageProps: ClineSayTool = {
+			tool: fileExists ? "editedExistingFile" : "newFileCreated",
+			path: getReadablePath(task.cwd, relPath),
+			content: newContent || "",
+			isOutsideWorkspace,
+			isProtected: isWriteProtected,
+		}
+
+		const partialMessage = JSON.stringify(sharedMessageProps)
+		await task.ask("tool", partialMessage, block.partial).catch(() => {})
+
+		if (newContent) {
+			if (!task.diffViewProvider.isEditing) {
+				await task.diffViewProvider.open(relPath)
+			}
+
+			await task.diffViewProvider.update(
+				everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
+				false,
+			)
 		}
 	}
 }
