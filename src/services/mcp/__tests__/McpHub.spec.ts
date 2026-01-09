@@ -522,6 +522,46 @@ describe("McpHub", () => {
 		})
 	})
 
+	describe("Workspace switch handling", () => {
+		it("should clear project MCP servers when the new workspace has no project MCP config", async () => {
+			mockProvider.cwd = "/test/project"
+
+			const accessMock = vi.mocked(fs.access)
+			accessMock.mockImplementation(async (filePath) => {
+				if (typeof filePath === "string" && filePath.includes("/test/project")) {
+					const error = new Error("ENOENT")
+					;(error as NodeJS.ErrnoException).code = "ENOENT"
+					throw error
+				}
+				return undefined
+			})
+
+			const mcpHub = new McpHub(mockProvider as ClineProvider)
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			mcpHub.connections = [
+				{
+					type: "disconnected",
+					server: {
+						name: "project-server",
+						config: JSON.stringify({ command: "node", args: ["test.js"] }),
+						status: "disconnected",
+						source: "project",
+						errorHistory: [],
+					},
+					client: null,
+					transport: null,
+				},
+			]
+
+			await mcpHub.handleWorkspaceSwitch()
+
+			expect(mcpHub.connections.some((conn) => conn.server.source === "project")).toBe(false)
+
+			accessMock.mockResolvedValue(undefined)
+		})
+	})
+
 	describe("DisableReason enum usage", () => {
 		it("should use MCP_DISABLED reason when MCP is globally disabled", async () => {
 			// Mock provider with mcpEnabled: false

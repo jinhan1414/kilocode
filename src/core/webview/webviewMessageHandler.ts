@@ -3949,6 +3949,7 @@ export const webviewMessageHandler = async (
 					provider.log(`[Workspace] No current task to cancel.`)
 				}
 				await provider.setActiveWorkspacePath(message.path)
+				await provider.getMcpHub()?.handleWorkspaceSwitch()
 				provider.log(`[Workspace] Finished processing switchWorkspace message.`)
 			}
 			break

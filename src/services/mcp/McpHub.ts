@@ -393,7 +393,11 @@ export class McpHub {
 	private async updateProjectMcpServers(): Promise<void> {
 		try {
 			const projectMcpPath = await this.getProjectMcpPath()
-			if (!projectMcpPath) return
+			if (!projectMcpPath) {
+				await this.cleanupProjectMcpServers()
+				await this.notifyWebviewOfServerChanges()
+				return
+			}
 
 			const content = await fs.readFile(projectMcpPath, "utf-8")
 			let config: any
@@ -422,6 +426,22 @@ export class McpHub {
 		} catch (error) {
 			this.showErrorMessage(t("mcp:errors.failed_update_project"), error)
 		}
+	}
+
+	public async handleWorkspaceSwitch(): Promise<void> {
+		if (this.isDisposed) {
+			return
+		}
+
+		await this.watchProjectMcpFile()
+		const projectMcpPath = await this.getProjectMcpPath()
+		if (!projectMcpPath) {
+			await this.cleanupProjectMcpServers()
+			await this.notifyWebviewOfServerChanges()
+			return
+		}
+
+		await this.updateProjectMcpServers()
 	}
 
 	private async cleanupProjectMcpServers(): Promise<void> {
